@@ -6,6 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired; // Used with fiel
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // Import for transaction management
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List; // Import List
+import java.time.LocalDateTime; // Import LocalDateTime
+import java.util.Optional; // Import Optional
 // Assuming you used Lombok's @Data, @NoArgsConstructor, @AllArgsConstructor on your entities
 
 @Service // Marks this as a Spring Service component
@@ -40,5 +46,9 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id)); // Basic error handling
     }
 
-    // You'll add more methods here later (e.g., findByUsername, update user, delete user)
+    // NEW METHOD: Get all users
+    @Transactional(readOnly = true)
+    public List<User> getAllUsers() {
+        return userRepository.findAll(); // JpaRepository provides findAll()
+    }
 }
