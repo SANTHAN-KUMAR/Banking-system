@@ -1,76 +1,86 @@
 package com.santhan.banking_system.service;
 
 import com.santhan.banking_system.model.Account;
-import com.santhan.banking_system.model.User; // May need User entity for linking
-import com.santhan.banking_system.repository.AccountRepository; // Import Account Repository
-import com.santhan.banking_system.repository.UserRepository; // May need User Repository
+import com.santhan.banking_system.model.AccountType; // Import AccountType
+import com.santhan.banking_system.model.User;
+import com.santhan.banking_system.repository.AccountRepository;
+import com.santhan.banking_system.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
-import java.util.Optional; // Import Optional
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 
 @Service
 public class AccountService {
 
     private final AccountRepository accountRepository;
-    private final UserRepository userRepository; // Inject UserRepository as accounts are linked to users
+    private final UserRepository userRepository;
 
+    @Autowired
     public AccountService(AccountRepository accountRepository, UserRepository userRepository) {
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
     }
 
-    // --- Example method: Create an account for a user ---
     @Transactional
-    public Account createAccount(Long userId, String accountType) {
-        // Find the user first
+    public Account createAccount(Long userId, Account account) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
 
-        Account account = new Account();
-        account.setAccountNumber(generateUniqueAccountNumber()); // You'll implement this method
-        account.setUser(user); // Link the account to the user
-        account.setAccountType(accountType);
-        account.setBalance(BigDecimal.ZERO); // Start with zero balance
-        account.setCreatedAt(java.time.LocalDateTime.now());
+        String newAccountNumber = generateUniqueAccountNumber();
+        while (accountRepository.findByAccountNumber(newAccountNumber).isPresent()) {
+            newAccountNumber = generateUniqueAccountNumber();
+        }
+        account.setAccountNumber(newAccountNumber);
+        account.setUser(user);
 
-        // Add the account to the user's list of accounts (optional, but good for relationship consistency)
-        user.getAccounts().add(account);
-        userRepository.save(user); // Save the user to update the relationship
+        if (account.getBalance() == null || account.getBalance().compareTo(BigDecimal.ZERO) < 0) {
+            account.setBalance(BigDecimal.ZERO);
+        }
 
-        return accountRepository.save(account); // Save the new account
+        return accountRepository.save(account);
     }
 
-    // --- Example method: Perform a Deposit (Crucial Transaction Example!) ---
-    @Transactional // Essential for transactional operations like deposits
-    public Account deposit(String accountNumber, BigDecimal amount) {
-        // Add validation here (e.g., amount > 0)
-
-        // Find the account
-        Account account = accountRepository.findByAccountNumber(accountNumber) // Requires adding findByAccountNumber to AccountRepository
-                .orElseThrow(() -> new RuntimeException("Account not found with number: " + accountNumber));
-
-        // Update the balance
-        account.setBalance(account.getBalance().add(amount));
-
-        // (Phase 2) Create and save a Transaction record here!
-
-        // Save the updated account balance
-        Account updatedAccount = accountRepository.save(account);
-
-        // If any error happened between fetching the account and saving,
-        // the @Transactional annotation ensures the balance change is rolled back!
-
-        return updatedAccount;
+    public List<Account> getAllAccounts() {
+        return accountRepository.findAll();
     }
 
-    // You'll add methods for withdrawal, transfer, get balance, etc.
+    public Optional<Account> getAccountById(Long id) {
+        return accountRepository.findById(id);
+    }
+
+    public List<Account> getAccountsByUserId(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
+        return accountRepository.findByUser(user);
+    }
+
+    @Transactional
+    public Account updateAccountDetails(Long accountId, Account updatedAccount) {
+        Account existingAccount = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found with ID: " + accountId));
+
+        // Only update allowed fields (e.g., accountType). Balance is handled by transactions.
+        existingAccount.setAccountType(updatedAccount.getAccountType());
+        // If you add other non-financial fields like description, update them here:
+        // existingAccount.setDescription(updatedAccount.getDescription());
+
+        return accountRepository.save(existingAccount);
+    }
+
+    public void deleteAccount(Long id) {
+        accountRepository.deleteById(id);
+    }
+
     private String generateUniqueAccountNumber() {
-        // Implement logic to generate a unique account number (e.g., random string/number check for existence)
-        // This is a separate task
-        return java.util.UUID.randomUUID().toString(); // Simple placeholder
+        Random random = new Random();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 10; i++) {
+            sb.append(random.nextInt(10));
+        }
+        return sb.toString();
     }
-
-    // --- If you didn't add Lombok, add getters/setters/constructors manually ---
 }

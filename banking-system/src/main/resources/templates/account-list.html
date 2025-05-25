@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Account List</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    .message-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+    .message-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .button {
+        display: inline-block;
+        padding: 10px 15px;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        margin-top: 10px;
+        margin-right: 5px;
+    }
+    .button:hover { background-color: #0056b3; }
+    .button-secondary { background-color: #6c757d; }
+    .button-secondary:hover { background-color: #5a6268; }
+    .button-info { background-color: #17a2b8; }
+    .button-info:hover { background-color: #138496; }
+    .button-warning { background-color: #ffc107; color: #212529; }
+    .button-warning:hover { background-color: #e0a800; }
+  </style>
+</head>
+<body>
+<h1>Bank Accounts</h1>
+
+<div th:if="${successMessage}" class="message-success">
+  <p th:text="${successMessage}"></p>
+</div>
+<div th:if="${errorMessage}" class="message-error">
+  <p th:text="${errorMessage}"></p>
+</div>
+
+<a th:href="@{/accounts/create}" class="button">Create New Account</a>
+<a th:href="@{/users}" class="button button-secondary">Back to Users</a>
+
+<table>
+  <thead>
+  <tr>
+    <th>ID</th>
+    <th>Account Number</th>
+    <th>Type</th>
+    <th>Balance</th>
+    <th>Owner (Username)</th>
+    <th>Created At</th>
+    <th>Updated At</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr th:each="account : ${accounts}">
+    <td th:text="${account.id}">1</td>
+    <td th:text="${account.accountNumber}">1234567890</td>
+    <td th:text="${account.accountType}">SAVINGS</td>
+    <td th:text="${#numbers.formatDecimal(account.balance, 0, 'COMMA', 2, 'POINT')}">1000.00</td>
+    <td th:text="${account.user.username}">user1</td>
+    <td th:text="${#temporals.format(account.createdAt, 'dd-MM-yyyy HH:mm')}">2023-01-01 10:00</td>
+    <td th:text="${#temporals.format(account.updatedAt, 'dd-MM-yyyy HH:mm')}">2023-01-01 10:00</td>
+    <td>
+      <a th:href="@{/accounts/details/{id}(id=${account.id})}" class="button button-info">Details</a>
+      <a th:href="@{/accounts/edit/{id}(id=${account.id})}" class="button button-warning">Edit</a>
+    </td>
+  </tr>
+  </tbody>
+</table>
+</body>
+</html>
