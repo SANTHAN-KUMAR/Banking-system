@@ -1,51 +1,52 @@
 package com.santhan.banking_system.model;
 
-import jakarta.persistence.*; // Use jakarta.persistence for newer Spring Boot versions
-import lombok.Data; // Import Lombok annotations if you added Lombok
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import java.util.*;
-import java.time.LocalDateTime; // Use java.time for modern date/time
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
-@Data // Lombok: Generates getters, setters, toString, equals, hashCode
-@NoArgsConstructor // Lombok: Generates a no-argument constructor
-@AllArgsConstructor // Lombok: Generates a constructor with all fields
-
-@Entity // JPA: Marks this class as a database entity
-@Table(name = "users") // JPA: Specifies the name of the table in the database
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
 
-    @Id // JPA: Marks this field as the primary key
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // JPA: Configures auto-incrementing ID
-    private Long id; // Corresponds to BIGINT in SQL
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(name = "username", nullable = false, unique = true) // JPA: Maps to 'username' column
-    private String username; // Corresponds to VARCHAR(255)
+    @Column(nullable = false, unique = true)
+    private String username;
 
-    @Column(name = "password_hash", nullable = false) // JPA: Maps to 'password_hash' column
-    private String passwordHash; // Corresponds to VARCHAR(255)
+    @Column(nullable = false)
+    private String email;
 
-    @Column(name = "email") // JPA: Maps to 'email' column
-    private String email; // Corresponds to VARCHAR(255)
+    @Column(nullable = false)
+    private String passwordHash;
 
-    @Column(name = "created_at") // JPA: Maps to 'created_at' column
-    private LocalDateTime createdAt; // Corresponds to TIMESTAMP
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    // This is the relationship mapping: One User can have Many Accounts
-    // 'mappedBy' indicates the field in the 'Account' entity that owns the relationship (the foreign key side)
-    // CascadeType.ALL: If a User is deleted, all associated Accounts will also be deleted. Be careful with this!
-    // orphanRemoval = true: If an Account is removed from the 'accounts' list of a User, it's deleted from the DB.
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Account> accounts = new ArrayList<>(); // Initialize to avoid NullPointerException
+    // --- NEW: Add this to establish the one-to-many relationship with Account ---
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Account> accounts = new HashSet<>();
 
-    // --- If you didn't add Lombok, you would manually add getters and setters like this: ---
-    // public Long getId() { return id; }
-    // public void setId(Long id) { this.id = id; }
-    // public String getUsername() { return username; }
-    // public void setUsername(String username) { this.username = username; }
-    // // ... and so on for all fields ...
-    // public List<Account> getAccounts() { return accounts; }
-    // public void setAccounts(List<Account> accounts) { this.accounts = accounts; }
-    // --- You would also need to write constructors ---
+    // Custom constructor for creation (without ID, dates, and accounts initially)
+    public User(String username, String email, String passwordHash) {
+        this.username = username;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.createdAt = LocalDateTime.now(); // Set creation date here
+    }
 
+    // If you're using Lombok's @AllArgsConstructor, it will generate a constructor
+    // with all fields. If you also have a no-arg constructor, you might need to
+    // explicitly define a constructor that matches the fields you're setting from the form.
+    // For simplicity with Lombok, ensure your form fields match a constructor or use setters.
 }
