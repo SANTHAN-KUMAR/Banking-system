@@ -4,7 +4,7 @@ This document outlines the development roadmap for our real-time banking system,
 
 ---
 ## Currently in Phase - 2
-## Phase 0: Foundation (Underway)
+## Phase 0: Foundation (Completed)
 
 This phase covers the core components we've already established or are in the process of building.
 
