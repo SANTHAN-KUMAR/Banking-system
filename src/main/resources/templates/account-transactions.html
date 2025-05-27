@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Transactions for Account: <span th:text="${account.accountNumber}"></span></title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+    h1 { color: #333; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    th {
+        background-color: #007bff;
+        color: white;
+    }
+    tr:nth-child(even) { background-color: #f2f2f2; }
+    .back-button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        text-decoration: none;
+        margin-top: 20px;
+    }
+    .back-button:hover { background-color: #5a6268; }
+    .deposit { color: green; font-weight: bold; }
+    .withdrawal { color: red; font-weight: bold; }
+    .transfer { color: blue; font-weight: bold; }
+  </style>
+</head>
+<body>
+<h1>Transactions for Account: <span th:text="${account.accountNumber}"></span></h1>
+<p>Current Balance: <span th:text="${account.balance}"></span></p>
+
+<div th:if="${transactions.isEmpty()}">
+  <p>No transactions found for this account.</p>
+</div>
+<div th:unless="${transactions.isEmpty()}">
+  <table>
+    <thead>
+    <tr>
+      <th>ID</th>
+      <th>Type</th>
+      <th>Amount</th>
+      <th>Description</th>
+      <th>Date</th>
+      <th>Source Account</th>
+      <th>Destination Account</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="transaction : ${transactions}">
+      <td th:text="${transaction.id}"></td>
+      <td>
+                        <span th:classappend="${transaction.transactionType == T(com.santhan.banking_system.model.TransactionType).DEPOSIT ? 'deposit' : (transaction.transactionType == T(com.santhan.banking_system.model.TransactionType).WITHDRAWAL ? 'withdrawal' : 'transfer')}"
+                              th:text="${transaction.transactionType}"></span>
+      </td>
+      <td th:text="${transaction.amount}"></td>
+      <td th:text="${transaction.description}"></td>
+      <td th:text="${#temporals.format(transaction.transactionDate, 'yyyy-MM-dd HH:mm:ss')}"></td>
+      <td>
+        <span th:if="${transaction.sourceAccount}" th:text="${transaction.sourceAccount.accountNumber}"></span>
+        <span th:unless="${transaction.sourceAccount}">N/A (External)</span>
+      </td>
+      <td>
+        <span th:if="${transaction.destinationAccount}" th:text="${transaction.destinationAccount.accountNumber}"></span>
+        <span th:unless="${transaction.destinationAccount}">N/A (External)</span>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+
+<a th:href="@{'/accounts/details/' + ${account.id}}" class="back-button">Back to Account Details</a>
+</body>
+</html>

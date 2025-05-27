@@ -48,8 +48,9 @@ public class AccountService {
         return accountRepository.findAll();
     }
 
-    public Optional<Account> getAccountById(Long id) {
-        return accountRepository.findById(id);
+    public Account getAccountById(Long id) {
+        return accountRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found with ID: " + id));
     }
 
     public List<Account> getAccountsByUserId(Long userId) {
