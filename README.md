@@ -3,8 +3,8 @@
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
 
 ---
-## Currently in Phase - 2
-## Phase 0: Foundation (Completed)
+## Currently in Phase - 3
+## ~~Phase 0: Foundation~~ (Completed)
 
 This phase covers the core components we've already established or are in the process of building.
 
@@ -25,7 +25,7 @@ This phase covers the core components we've already established or are in the pr
 
 ---
 
-## Phase 1: Core Account Management (Current Focus)
+## ~~Phase 1: Core Account Management~~ (Completed)
 
 This phase expands our system to manage bank accounts.
 
@@ -44,7 +44,7 @@ This phase expands our system to manage bank accounts.
 
 ---
 
-## Phase 2: Transaction Processing
+## ~~Phase 2: Transaction Processing~~ (Completed)
 
 This phase is the core of any banking system, focusing on handling financial transactions. It requires careful handling of financial logic and atomicity.
 
