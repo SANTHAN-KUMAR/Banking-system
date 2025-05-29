@@ -1,4 +1,4 @@
-# Sprint 4: User Authentication & Authorization - Documentation
+# Sprint 3: User Authentication & Authorization - Documentation
 
 This document reflects on the implementation of user authentication and basic role-based authorization for the banking system, detailing key achievements and challenges encountered during this development phase.
 
