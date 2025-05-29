@@ -7,10 +7,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class AppConfig {
-
-    // Move the PasswordEncoder bean definition here
+/*
+    // DELETE THIS ENTIRE METHOD FROM AppConfig.java -
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+*/
 }

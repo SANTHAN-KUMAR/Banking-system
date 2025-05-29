@@ -2,12 +2,14 @@ package com.santhan.banking_system.controller;
 
 import com.santhan.banking_system.model.Account;
 import com.santhan.banking_system.model.AccountType;
-import com.santhan.banking_system.model.User; // Ensure User is imported if you use it directly
-import com.santhan.banking_system.model.Transaction; // Import Transaction
+import com.santhan.banking_system.model.User;
+import com.santhan.banking_system.model.Transaction;
 import com.santhan.banking_system.service.AccountService;
 import com.santhan.banking_system.service.UserService;
-import com.santhan.banking_system.service.TransactionService; // Import TransactionService
+import com.santhan.banking_system.service.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +17,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.util.List;
-// Removed Optional import from here as it's handled in service, and controller
-// now directly expects Account or catches IllegalArgumentException.
-// If your AccountService's getAccountById still returns Optional,
-// you might need to re-add 'import java.util.Optional;' and adjust the logic.
+import java.util.Optional;
 
 @Controller
 @RequestMapping("/accounts")
@@ -28,8 +27,6 @@ public class AccountController {
     private final UserService userService;
     private final TransactionService transactionService;
 
-    // This is the ONLY @Autowired constructor. Spring will use this one
-    // to inject all three required service instances.
     @Autowired
     public AccountController(AccountService accountService, UserService userService, TransactionService transactionService) {
         this.accountService = accountService;
@@ -37,44 +34,63 @@ public class AccountController {
         this.transactionService = transactionService;
     }
 
-    // --- Existing Account Management Methods ---
-
+    // Existing listAccounts method (already updated and working)
     @GetMapping
     public String listAccounts(Model model) {
-        List<Account> accounts = accountService.getAllAccounts();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+
+        Optional<User> currentUserOptional = userService.findByUsername(currentUsername);
+
+        if (currentUserOptional.isEmpty()) {
+            model.addAttribute("error", "Could not retrieve current user information.");
+            return "redirect:/login?logout";
+        }
+
+        User currentUser = currentUserOptional.get();
+        List<Account> accounts = accountService.getAccountsByUserId(currentUser.getId());
         model.addAttribute("accounts", accounts);
         return "account-list";
     }
 
+    // Modified showCreateAccountForm
     @GetMapping("/create")
-    public String showCreateAccountForm(Model model) {
+    public String showCreateAccountForm(Model model, Authentication authentication) {
+        // You no longer need to add all users to the model
         model.addAttribute("account", new Account());
-        model.addAttribute("users", userService.getAllUsers());
-        model.addAttribute("accountTypes", AccountType.values()); // Use AccountType enum
+        model.addAttribute("accountTypes", AccountType.values());
+        // Optionally, you can add the current user's username for display if desired
+        // model.addAttribute("currentUsername", authentication.getName());
         return "account-create";
     }
 
+    // Modified createAccount to use the logged-in user's ID
     @PostMapping("/create")
     public String createAccount(@ModelAttribute("account") Account account,
-                                @RequestParam("userId") Long userId,
+                                // Remove @RequestParam("userId") as we will get it from security context
                                 Model model,
                                 RedirectAttributes redirectAttributes) {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName(); // Get username from logged-in user
+
+        User currentUser = userService.findByUsername(currentUsername)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found.")); // Should not happen
+
         try {
-            // Basic balance validation moved here for immediate user feedback before service call
             if (account.getBalance() == null || account.getBalance().compareTo(BigDecimal.ZERO) < 0) {
                 model.addAttribute("error", "Initial balance cannot be negative.");
-                model.addAttribute("users", userService.getAllUsers());
-                model.addAttribute("accountTypes", AccountType.values());
-                return "account-create"; // Stay on form with error
+                model.addAttribute("accountTypes", AccountType.values()); // Add back for form re-display
+                return "account-create";
             }
-            accountService.createAccount(userId, account);
-            redirectAttributes.addFlashAttribute("success", "Account created successfully!"); // Changed to 'success' for consistency with new messages
+            // Pass the current user's ID to the service
+            accountService.createAccount(currentUser.getId(), account);
+            redirectAttributes.addFlashAttribute("success", "Account created successfully!");
             return "redirect:/accounts";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
-            model.addAttribute("users", userService.getAllUsers());
-            model.addAttribute("accountTypes", AccountType.values());
-            return "account-create"; // Stay on form with error
+            model.addAttribute("accountTypes", AccountType.values()); // Add back for form re-display
+            return "account-create";
         }
     }
 

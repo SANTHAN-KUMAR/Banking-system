@@ -67,13 +67,6 @@
         <input type="number" id="initialBalance" name="balance" step="0.01" min="0" required />
     </div>
     <div>
-        <label for="userId">Select User Owner:</label>
-        <select id="userId" name="userId" required>
-            <option value="">-- Select User --</option>
-            <option th:each="user : ${users}" th:value="${user.id}" th:text="${user.username}"></option>
-        </select>
-    </div>
-    <div>
         <button type="submit" class="button">Create Account</button>
         <a th:href="@{/accounts}" class="button back-button">Back to Account List</a>
     </div>

@@ -7,11 +7,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority; // Keeping this import as it might be useful elsewhere
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
+import java.util.Collections; // Keeping this import as it might be useful elsewhere
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +25,10 @@ public class UserService implements UserDetailsService {
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    public Optional<User> findByUsername(String username) {
+        return userRepository.findByUsername(username);
     }
 
     public User createUser(User user) {
@@ -49,8 +53,9 @@ public class UserService implements UserDetailsService {
         user.setPassword(encodedPassword);
         System.out.println("DEBUG: Password after encoding: '" + encodedPassword + "'");
 
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+        // The @PrePersist annotation in User.java should handle these now
+        // user.setCreatedAt(LocalDateTime.now());
+        // user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
         System.out.println("DEBUG: User saved to database. Generated ID: " + savedUser.getId());
@@ -78,7 +83,7 @@ public class UserService implements UserDetailsService {
         user.setUsername(userDetails.getUsername());
         user.setEmail(userDetails.getEmail());
         // Do NOT update password here unless explicitly handled with re-encoding
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now()); // @PreUpdate in User.java will handle this too if not explicitly set
         return userRepository.save(user);
     }
 
@@ -90,17 +95,19 @@ public class UserService implements UserDetailsService {
         userRepository.deleteById(id);
     }
 
-    // NEW: Implementation of UserDetailsService method for Spring Security
+    // UPDATED: Implementation of UserDetailsService method for Spring Security
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         System.out.println("DEBUG: loadUserByUsername called for username: '" + username + "'");
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-        System.out.println("DEBUG: Found user '" + user.getUsername() + "' for login.");
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-        );
+        System.out.println("DEBUG: Found user '" + user.getUsername() + "' for login with role: " + user.getRole()); // Added role debug
+
+        // --- THIS IS THE KEY CHANGE ---
+        // Your com.santhan.banking_system.model.User class now implements UserDetails,
+        // so you can return the user object directly. Its getAuthorities() method
+        // will provide the correct roles to Spring Security.
+        return user;
+        // -----------------------------
     }
 }

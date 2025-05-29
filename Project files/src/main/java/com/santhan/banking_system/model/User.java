@@ -3,9 +3,16 @@ package com.santhan.banking_system.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime; // Use java.time.LocalDateTime for modern Spring/JPA
 
+// Spring Security imports for UserDetails
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import java.util.Collection;
+import java.util.List; // For List.of()
+
 @Entity
 @Table(name = "users") // Ensure table name is explicitly "users"
-public class User {
+public class User implements UserDetails { // <--- Implement UserDetails
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,7 +27,13 @@ public class User {
     @Column(nullable = false, length = 60) // BCrypt passwords are 60 chars
     private String password;
 
-    @Column(name = "created_at", nullable = false) // Explicitly map to snake_case
+    // --- NEW ROLE FIELD ---
+    @Enumerated(EnumType.STRING) // Store enum as String in DB ('ROLE_CUSTOMER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN')
+    @Column(nullable = false) // Removed 'defaultValue' attribute due to compilation issue
+    private UserRole role;
+    // ----------------------
+
+    @Column(name = "created_at", nullable = false, updatable = false) // Explicitly map to snake_case, make updatable = false
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false) // Explicitly map to snake_case
@@ -35,7 +48,8 @@ public class User {
         this.username = username;
         this.email = email;
         this.password = password;
-        // createdAt and updatedAt will be set by service or annotations
+        this.role = UserRole.ROLE_CUSTOMER; // Set default role for new users
+        // createdAt and updatedAt will be set by @PrePersist
     }
 
     // --- Getters and Setters ---
@@ -71,6 +85,16 @@ public class User {
         this.password = password;
     }
 
+    // --- Getter and Setter for Role ---
+    public UserRole getRole() {
+        return role;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
+    }
+    // ----------------------------------
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -87,6 +111,56 @@ public class User {
         this.updatedAt = updatedAt;
     }
 
+    // --- Lifecycle Callbacks for Auditing ---
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        // Ensure role is set on creation if somehow not set in constructor (e.g., if using default constructor + setters)
+        if (this.role == null) {
+            this.role = UserRole.ROLE_CUSTOMER;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+    // ----------------------------------------
+
+    // --- UserDetails interface implementations ---
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Spring Security expects roles as GrantedAuthority objects
+        // We create a list containing a SimpleGrantedAuthority for the user's role
+        return List.of(new SimpleGrantedAuthority(role.name()));
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        // For simplicity, we assume accounts never expire. In a real app, this might be a boolean field.
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        // For simplicity, we assume accounts are never locked. In a real app, this might be a boolean field.
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        // For simplicity, we assume credentials never expire. In a real app, this might be a boolean field.
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        // For simplicity, we assume accounts are always enabled. In a real app, this might be a boolean field.
+        return true;
+    }
+    // ---------------------------------------------
+
     // Optional: toString for better debugging
     @Override
     public String toString() {
@@ -95,6 +169,7 @@ public class User {
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
                 ", password='[PROTECTED]'" + // Don't print password directly!
+                ", role=" + role + // Include role in toString
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';

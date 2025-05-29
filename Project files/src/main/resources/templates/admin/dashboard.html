@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+</head>
+<body>
+<h1>Admin Dashboard</h1>
+<p th:text="${message}"></p>
+<p>This page is only accessible to users with the ADMIN role.</p>
+<a th:href="@{/dashboard}">Back to Main Dashboard</a>
+<form th:action="@{/logout}" method="post">
+    <button type="submit">Logout</button>
+</form>
+</body>
+</html>
