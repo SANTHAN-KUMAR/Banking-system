@@ -1,32 +1,78 @@
-Alright, team! We've just wrapped up what I'm calling 'Sprint 4', and honestly, it was quite the journey, but we got some critical stuff done. This sprint was all about getting our user authentication and basic authorization solid, and despite a few bumps, we're in a really good place.
+Sprint 4: User Authentication & Authorization
+
+This document reflects on the implementation of user authentication and basic role-based authorization for the banking system, detailing key achievements and challenges encountered during this development phase.
+Overview
+
+This sprint focused on establishing a secure foundation for the application by integrating Spring Security. The primary goal was to enable user login/logout, ensure data isolation (users only see their own accounts), and lay the groundwork for role-based access control.
 Key Achievements
 
-    User Authentication & Authorization: We successfully implemented secure user login and logout using Spring Security. Users can now authenticate, and the system correctly identifies who's logged in.
+    Secure User Authentication: Implemented robust user login and logout functionality using Spring Security.
 
-    Account Ownership Filtering: A massive win is that users now only see their own accounts on the dashboard. This was a critical security fix, ensuring data isolation and preventing a customer from seeing other customers' bank accounts.
+    Account Ownership Filtering: Successfully configured the system to display only the bank accounts associated with the currently logged-in user, preventing unauthorized access to other users' financial data.
 
-    Self-Service Account Creation: Customers can now create their own bank accounts, and these accounts are automatically linked to their user profile, removing the need to select an owner from a dropdown.
+    Self-Service Account Creation: Enabled authenticated users to create new bank accounts that are automatically linked to their profile, streamlining the account creation process.
 
-Challenges Faced
+    Basic Role-Based Access Control (RBAC): Established initial URL-based authorization rules in SecurityConfig.java to restrict access to certain paths (e.g., /admin/** for ROLE_ADMIN only), demonstrating the system's ability to differentiate user permissions.
 
-This sprint wasn't without its challenges, and we tackled some tricky ones:
+Challenges Faced & Solutions Implemented
 
-    Initial Login Redirect Loop (ERR_TOO_MANY_REDIRECTS): We hit a classic Spring Security setup hurdle when trying to access /login. This was resolved by creating dedicated LoginController and login.html/register.html pages to handle the view rendering.
+This section outlines specific technical challenges encountered and the solutions applied to overcome them.
+1. Login Redirect Loop (ERR_TOO_MANY_REDIRECTS)
 
-    Persistent Database Schema Mismatches: This was a recurring headache! We battled the 'Unknown column' error for updated_at and the 'Field password_hash doesn't have a default value' error. This required careful, manual database schema adjustments (dropping the rogue password_hash column, ensuring created_at and updated_at columns were correctly defined as NOT NULL with appropriate defaults). It really highlighted the importance of keeping our JPA entity definitions in sync with the actual database schema.
+    Problem: After configuring Spring Security, navigating to /login resulted in an infinite redirect loop. This occurred because Spring Security was redirecting to /login (as configured) but there was no dedicated controller or Thymeleaf template to serve the actual login page.
 
-    "Ambiguous Mapping" in AccountController: We encountered a build error because of duplicate POST /accounts/create methods in the AccountController. This was quickly resolved by removing the redundant method, ensuring only one handler for that specific endpoint.
+    Solution: Created a LoginController with @GetMapping("/login") and @GetMapping("/register") methods to explicitly render login.html and register.html Thymeleaf templates.
 
-    Stubborn defaultValue() Compilation Error: The defaultValue() attribute on the @Column annotation in User.java caused a very persistent compilation error, even after extensive cache clearing and dependency updates. We implemented a practical workaround by removing the defaultValue attribute from the annotation and instead relying on the User constructor and @PrePersist callback to manually set the default ROLE_CUSTOMER. This achieves the same functional goal without blocking compilation.
+2. Database Schema Mismatches (Empty Passwords/Emails, Unknown Columns)
 
-    Thymeleaf sec:authorize Not Working: Even after adding the sec:authorize attributes to the HTML, the links for Admin/Employee panels were still visible to regular customers. This was due to a missing thymeleaf-extras-springsecurity6 dependency, which, once correctly added and recognized, allowed Thymeleaf to process the security-specific attributes and hide unauthorized links.
+    Problem: New user registrations resulted in empty password and email fields in the MySQL database. Subsequent login attempts failed due to an "Unknown column 'u1_0.updated_at'" error and later "Field 'password_hash' doesn't have a default value."
 
-Looking Ahead
+    Solution:
 
-With these core features in place, we're well-positioned for the next phase. Our immediate focus will be on:
+        Empty Fields: The POST /register endpoint in LoginController was not correctly binding form data to the User object. This was fixed by ensuring register.html used th:object="${user}" and th:field="*{fieldName}" for input binding, and the controller method correctly used @ModelAttribute("user") User user.
 
-    Securing Individual Account Actions: Ensuring that when a user tries to view, edit, deposit, withdraw, or transfer funds for a specific account, the system verifies that the account actually belongs to them (or they have appropriate permissions). This will involve adding ownership checks in the AccountService methods.
+        Unknown Column updated_at: The users table in MySQL was missing the updated_at column (and created_at was sometimes inconsistent) despite ddl-auto=update. This was manually corrected by running ALTER TABLE users ADD COLUMN updated_at DATETIME; and ALTER TABLE users ADD COLUMN created_at DATETIME; in MySQL.
 
-    Implementing Full RBAC for Functionality: Building out the actual Admin and Employee panels, and using Spring Security's @PreAuthorize annotations to restrict access to specific controller and service methods based on roles (e.g., only admins can list all users, employees can view all accounts but not modify all user details).
+        password_hash Error: An old, conflicting password_hash column with a NOT NULL constraint existed in the users table, preventing inserts. This was resolved by explicitly dropping the column: ALTER TABLE users DROP COLUMN password_hash;.
 
-Overall, a very productive sprint with a lot of learning and problem-solving! Great work, team!
+        updated_at NULL Value Error: Existing NULL values in updated_at prevented setting the column to NOT NULL. This was fixed by updating existing NULL values to NOW() before altering the column: UPDATE users SET updated_at = NOW() WHERE updated_at IS NULL; followed by ALTER TABLE users MODIFY COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;.
+
+3. Ambiguous Mapping for POST /accounts/create
+
+    Problem: A BeanCreationException: Ambiguous mapping error occurred during application startup, indicating two createAccount methods in AccountController were mapped to POST /accounts/create.
+
+    Solution: Identified and removed the duplicate createAccount method, leaving only the one that retrieves the user ID from the Spring Security context.
+
+4. Cannot find @interface method 'defaultValue()' in User.java
+
+    Problem: Compilation failed with this error, despite jakarta.persistence-api-3.1.0.jar being present and correct in the local Maven repository. This indicated a deep-seated classpath or compiler interpretation issue.
+
+    Solution: As a workaround, the defaultValue = "ROLE_CUSTOMER" attribute was removed from the @Column annotation for the role field in User.java. The default role assignment is now handled programmatically in the User constructor and the @PrePersist lifecycle callback, achieving the same functional outcome.
+
+5. Thymeleaf sec:authorize Not Processing
+
+    Problem: Links intended only for ADMIN or EMPLOYEE roles were still visible to ROLE_CUSTOMER users on the dashboard.html page, even though backend security correctly blocked access (resulting in a 403).
+
+    Solution: The thymeleaf-extras-springsecurity6 dependency was missing from pom.xml. Adding this dependency allowed Thymeleaf to correctly process the sec:authorize attributes and conditionally render content based on the authenticated user's roles. A mvn clean install -U was necessary to ensure the dependency was properly downloaded and recognized.
+
+Next Steps
+
+With authentication and basic authorization in place, the next steps will focus on refining access control and building out role-specific functionalities:
+
+    Granular Account Access Control: Implement ownership checks for all individual account operations (e.g., details, edit, deposit, withdraw, transfer) to ensure a user can only interact with accounts they own. This will involve modifying AccountService methods to accept the authenticated User object and perform validation.
+
+    Admin Panel Development:
+
+        Create dedicated AdminController methods and Thymeleaf templates for managing users (e.g., listing all users, editing user details including roles, deleting users).
+
+        Apply @PreAuthorize("hasRole('ADMIN')") to these methods to enforce administrative access.
+
+    Employee Panel Development:
+
+        Create EmployeeController methods and templates for employee-specific tasks (e.g., viewing all customer accounts for support, approving transactions).
+
+        Apply @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')") to these methods.
+
+    UI Enhancements: Further refine the navigation and visibility of links/buttons in Thymeleaf templates based on user roles using sec:authorize.
+
+This documentation serves as a reference for the current state and future development of the banking system's security features.
