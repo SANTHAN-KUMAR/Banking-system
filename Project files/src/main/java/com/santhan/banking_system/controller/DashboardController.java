@@ -25,15 +25,6 @@ public class DashboardController {
     }
 
     // --- Optional: Admin Dashboard Controller ---
-    @GetMapping("/admin/dashboard")
-    // @PreAuthorize("hasRole('ADMIN')") // This would enforce the role directly on the method
-    public String viewAdminDashboard(Model model) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        model.addAttribute("username", authentication.getName());
-        model.addAttribute("message", "Welcome, Admin! This is the Admin Dashboard.");
-        // This will resolve to src/main/resources/templates/admin/dashboard.html
-        return "admin/dashboard";
-    }
 
     // --- Optional: Employee Dashboard Controller ---
     @GetMapping("/employee/dashboard")
