@@ -2,6 +2,7 @@
 
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
 
+## AWS Integration in pending, check for the recent issues encountered in hosting the application
 ---
 ## Currently in Phase - 3
 ## ~~Phase 0: Foundation~~ (Completed)
