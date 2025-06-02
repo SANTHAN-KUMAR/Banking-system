@@ -3,7 +3,7 @@
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
 
 ---
-## Currently in Phase - 3
+## Currently in Phase - 4
 ## ~~Phase 0: Foundation~~ (Completed)
 
 This phase covers the core components we've already established or are in the process of building.
@@ -87,7 +87,7 @@ This phase is the core of any banking system, focusing on handling financial tra
 
 ---
 
-## Phase 3: User Authentication & Authorization (Security)
+## ~~Phase 3: User Authentication & Authorization (Security)~~ (Completed - enhancements are needed)
 
 This phase is paramount for a real banking system, ensuring only authorized users can access their data and perform allowed operations.
 
