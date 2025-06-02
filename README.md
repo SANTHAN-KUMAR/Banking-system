@@ -88,7 +88,7 @@ This phase is the core of any banking system, focusing on handling financial tra
 
 ---
 
-## Phase 3: User Authentication & Authorization (Security)
+## ~~Phase 3: User Authentication & Authorization (Security)~~ (Completed, but ehancements and bug fixes are needed)
 
 This phase is paramount for a real banking system, ensuring only authorized users can access their data and perform allowed operations.
 
