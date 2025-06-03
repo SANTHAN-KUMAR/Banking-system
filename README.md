@@ -1,5 +1,7 @@
 # Real-Time Banking System: Project Roadmap
 
+## Removed integration with AWS
+
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
 
 ---
