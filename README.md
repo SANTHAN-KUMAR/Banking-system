@@ -6,6 +6,8 @@ This document outlines the development roadmap for our real-time banking system,
 
 ---
 ## Currently in Phase - 4
+
+### Updated the edit and delete options for the admin controll panel, successfully edits and deletes any account or user now!
 ## ~~Phase 0: Foundation~~ (Completed)
 
 This phase covers the core components we've already established or are in the process of building.
