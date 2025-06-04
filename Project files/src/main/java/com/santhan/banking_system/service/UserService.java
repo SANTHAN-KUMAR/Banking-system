@@ -1,17 +1,20 @@
 package com.santhan.banking_system.service;
 
 import com.santhan.banking_system.model.User;
+import com.santhan.banking_system.model.Account; // Import Account model
 import com.santhan.banking_system.repository.UserRepository;
+import com.santhan.banking_system.repository.AccountRepository; // Import AccountRepository for deleting accounts
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.core.authority.SimpleGrantedAuthority; // Keeping this import as it might be useful elsewhere
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional; // Import Transactional
 
 import java.time.LocalDateTime;
-import java.util.Collections; // Keeping this import as it might be useful elsewhere
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,17 +23,20 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AccountService accountService; // Inject AccountService to delete accounts
 
     @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AccountService accountService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.accountService = accountService; // Initialize AccountService
     }
 
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
+    @Transactional // Ensure user creation is transactional
     public User createUser(User user) {
         System.out.println("DEBUG: UserService.createUser method called.");
         System.out.println("DEBUG: User details received by service BEFORE encoding:");
@@ -53,28 +59,21 @@ public class UserService implements UserDetailsService {
         user.setPassword(encodedPassword);
         System.out.println("DEBUG: Password after encoding: '" + encodedPassword + "'");
 
-        // The @PrePersist annotation in User.java should handle these now
-        // user.setCreatedAt(LocalDateTime.now());
-        // user.setUpdatedAt(LocalDateTime.now());
-
         User savedUser = userRepository.save(user);
         System.out.println("DEBUG: User saved to database. Generated ID: " + savedUser.getId());
         return savedUser;
     }
 
-    // Existing method: Get all users
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    // Existing method: Get user by ID
     public User getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
     }
 
-    // Existing method: Update user details (Note: password is not updated here for simplicity,
-    // a separate method or careful handling would be needed if allowed)
+    @Transactional // Ensure user update is transactional
     public User updateUser(Long id, User userDetails) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
@@ -82,32 +81,46 @@ public class UserService implements UserDetailsService {
         // Update fields (excluding password, which should be handled separately for security)
         user.setUsername(userDetails.getUsername());
         user.setEmail(userDetails.getEmail());
-        // Do NOT update password here unless explicitly handled with re-encoding
-        user.setUpdatedAt(LocalDateTime.now()); // @PreUpdate in User.java will handle this too if not explicitly set
+
+        // FIX: Removed .isEmpty() check as getRole() likely returns an enum (UserRole)
+        // We only check if the role is not null. Validation for valid enum values
+        // should ideally happen at the controller or DTO level if the input is a String.
+        if (userDetails.getRole() != null) {
+            user.setRole(userDetails.getRole());
+        }
+        user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
 
-    // Existing method: Delete user
+    @Transactional // Crucial: Make the delete operation transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new IllegalArgumentException("User not found with ID: " + id);
+        User userToDelete = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
+
+        // --- CRUCIAL FIX: Delete all associated accounts first ---
+        List<Account> userAccounts = accountService.getAccountsByUserId(id); // Use the AccountService
+        if (userAccounts != null && !userAccounts.isEmpty()) {
+            for (Account account : userAccounts) {
+                // You might want to add more robust error handling here,
+                // or a specific method in AccountService to handle cascade deletion if needed.
+                // For now, we'll use the existing deleteAccount method.
+                accountService.deleteAccount(account.getId());
+            }
+            System.out.println("DEBUG: Deleted " + userAccounts.size() + " accounts for user ID: " + id);
         }
+        // --- End of CRUCIAL FIX ---
+
         userRepository.deleteById(id);
+        System.out.println("DEBUG: User with ID: " + id + " deleted successfully.");
     }
 
-    // UPDATED: Implementation of UserDetailsService method for Spring Security
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         System.out.println("DEBUG: loadUserByUsername called for username: '" + username + "'");
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-        System.out.println("DEBUG: Found user '" + user.getUsername() + "' for login with role: " + user.getRole()); // Added role debug
+        System.out.println("DEBUG: Found user '" + user.getUsername() + "' for login with role: " + user.getRole());
 
-        // --- THIS IS THE KEY CHANGE ---
-        // Your com.santhan.banking_system.model.User class now implements UserDetails,
-        // so you can return the user object directly. Its getAuthorities() method
-        // will provide the correct roles to Spring Security.
         return user;
-        // -----------------------------
     }
 }

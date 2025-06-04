@@ -2,19 +2,21 @@
 
 package com.santhan.banking_system.controller;
 
-import com.santhan.banking_system.model.User; // Import User model
-import com.santhan.banking_system.model.Account; // Import Account model
-import com.santhan.banking_system.service.UserService; // Import UserService
-import com.santhan.banking_system.service.AccountService; // Import AccountService
-import org.springframework.beans.factory.annotation.Autowired; // For @Autowired
+import com.santhan.banking_system.model.User;
+import com.santhan.banking_system.model.Account;
+import com.santhan.banking_system.service.UserService;
+import com.santhan.banking_system.service.AccountService;
+import com.santhan.banking_system.model.AccountType; // Import AccountType for account creation/editing
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*; // Import all annotations needed (GetMapping, PostMapping, PathVariable, ModelAttribute)
+import org.springframework.web.servlet.mvc.support.RedirectAttributes; // For flash attributes
+
 import java.util.List;
-// You might add more imports later for @PathVariable, @PostMapping etc.
+import java.util.Arrays; // For AccountType enum values
 
 @Controller
 @RequestMapping("/admin") // Base mapping for all admin-related endpoints
@@ -23,7 +25,7 @@ public class AdminController {
     private final UserService userService;
     private final AccountService accountService;
 
-    // Use @Autowired for constructor injection
+    // Use @Autowired for constructor injection (best practice)
     @Autowired
     public AdminController(UserService userService, AccountService accountService) {
         this.userService = userService;
@@ -52,30 +54,87 @@ public class AdminController {
         return "admin/dashboard";
     }
 
-    // --- FUTURE ADMIN PRIVILEGES (Placeholders) ---
-    // You will add more methods here to handle typical admin actions:
+    // --- USER MANAGEMENT ---
 
-    // Example: Display a form to edit a user
-    // @GetMapping("/users/edit/{id}")
-    // public String showEditUserForm(@PathVariable Long id, Model model) {
-    //     User user = userService.getUserById(id);
-    //     model.addAttribute("user", user);
-    //     return "admin/edit-user"; // Needs a new Thymeleaf template: admin/edit-user.html
-    // }
+    // 1. Display a form to edit a user
+    @GetMapping("/users/edit/{id}")
+    public String showEditUserForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        try {
+            User user = userService.getUserById(id);
+            model.addAttribute("user", user);
+            // Add all possible roles for a dropdown in the edit form
+            model.addAttribute("allRoles", Arrays.asList("ROLE_CUSTOMER", "ROLE_EMPLOYEE", "ROLE_ADMIN"));
+            return "admin/edit-user"; // This template needs to be created
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "User not found: " + e.getMessage());
+            return "redirect:/admin/dashboard";
+        }
+    }
 
-    // Example: Process the user update form
-    // @PostMapping("/users/update/{id}")
-    // public String updateUser(@PathVariable Long id, @ModelAttribute("user") User userDetails) {
-    //     userService.updateUser(id, userDetails);
-    //     return "redirect:/admin/dashboard"; // Redirect back to dashboard after update
-    // }
+    // 2. Process the user update form
+    @PostMapping("/users/update/{id}")
+    public String updateUser(@PathVariable Long id, @ModelAttribute("user") User userDetails, RedirectAttributes redirectAttributes) {
+        try {
+            // Call the userService.updateUser with both ID and userDetails
+            userService.updateUser(id, userDetails);
+            redirectAttributes.addFlashAttribute("success", "User updated successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error updating user: " + e.getMessage());
+        }
+        return "redirect:/admin/dashboard"; // Redirect back to dashboard after update
+    }
 
-    // Example: Delete a user
-    // @PostMapping("/users/delete/{id}")
-    // public String deleteUser(@PathVariable Long id) {
-    //     userService.deleteUser(id);
-    //     return "redirect:/admin/dashboard"; // Redirect back to dashboard after deletion
-    // }
+    // 3. Delete a user
+    @PostMapping("/users/delete/{id}")
+    public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            userService.deleteUser(id);
+            redirectAttributes.addFlashAttribute("success", "User deleted successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error deleting user: " + e.getMessage());
+        }
+        return "redirect:/admin/dashboard"; // Redirect back to dashboard after deletion
+    }
 
-    // (Similar methods would be added for account management)
+    // --- ACCOUNT MANAGEMENT ---
+
+    // 1. Display a form to edit an account
+    @GetMapping("/accounts/edit/{id}")
+    public String showEditAccountForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        try {
+            Account account = accountService.getAccountById(id);
+            model.addAttribute("account", account);
+            model.addAttribute("allAccountTypes", AccountType.values()); // Pass all enum values for dropdown
+            model.addAttribute("allUsers", userService.getAllUsers()); // Pass all users for owner selection
+            return "admin/edit-account"; // This template needs to be created
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Account not found: " + e.getMessage());
+            return "redirect:/admin/dashboard";
+        }
+    }
+
+    // 2. Process the account update form
+    @PostMapping("/accounts/update/{id}")
+    public String updateAccount(@PathVariable Long id, @ModelAttribute("account") Account accountDetails, RedirectAttributes redirectAttributes) {
+        try {
+            // Call the accountService.updateAccountDetails with both ID and accountDetails
+            accountService.updateAccountDetails(id, accountDetails);
+            redirectAttributes.addFlashAttribute("success", "Account updated successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error updating account: " + e.getMessage());
+        }
+        return "redirect:/admin/dashboard"; // Redirect back to dashboard after update
+    }
+
+    // 3. Delete an account
+    @PostMapping("/accounts/delete/{id}")
+    public String deleteAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            accountService.deleteAccount(id);
+            redirectAttributes.addFlashAttribute("success", "Account deleted successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error deleting account: " + e.getMessage());
+        }
+        return "redirect:/admin/dashboard"; // Redirect back to dashboard after deletion
+    }
 }

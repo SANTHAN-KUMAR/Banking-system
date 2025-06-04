@@ -1,20 +1,18 @@
 package com.santhan.banking_system.repository;
 
 import com.santhan.banking_system.model.Transaction;
+import com.santhan.banking_system.model.Account; // Import Account model
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 
-@Repository // This annotation is optional for interfaces extending JpaRepository, but good practice for clarity
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+    // Method to find all transactions for a given account (either as source or destination)
+    List<Transaction> findBySourceAccountOrDestinationAccount(Account sourceAccount, Account destinationAccount);
 
-    // Custom query method: find all transactions related to a specific account
-    // This will find transactions where the given account is either the source or the destination.
+    // You likely already have this from Sprint 2:
+    List<Transaction> findBySourceAccountId(Long accountId);
+    List<Transaction> findByDestinationAccountId(Long accountId);
+
+    // FIX: Add this method to resolve the error in TransactionService
     List<Transaction> findBySourceAccount_IdOrDestinationAccount_Id(Long sourceAccountId, Long destinationAccountId);
-
-    // Another useful query: find transactions by a specific type (e.g., all DEPOSITs)
-    // List<Transaction> findByTransactionType(TransactionType type);
-
-    // You can add more complex queries as needed later, e.g., by date range, by amount, etc.
 }
