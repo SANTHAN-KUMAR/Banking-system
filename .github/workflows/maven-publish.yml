@@ -23,16 +23,14 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
-      # FIX: Apply the working-directory to the specific path within the checked-out repository
       - name: Build with Maven
-        # This assumes your pom.xml is inside a folder named 'Banking-system' at the root of your GitHub repository.
-        # So, the path becomes: /home/runner/work/YOUR_REPO_NAME/YOUR_REPO_NAME/Banking-system
-        working-directory: Banking-system
+        # FIX: Set the working directory to 'Project files'
+        working-directory: Project files
         run: mvn -B package --file pom.xml
 
       - name: Publish to GitHub Packages Apache Maven
-        # Apply the same working-directory here
-        working-directory: Banking-system
+        # FIX: Apply the same working directory here
+        working-directory: Project files
         run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
         env:
           GITHUB_TOKEN: ${{ github.token }}
