@@ -35,7 +35,7 @@
 		<repository>
 			<id>github</id>
 			<name>GitHub Packages</name>
-			<url>https://maven.pkg.github.com/santhan/banking-system</url>
+			<url>https://maven.pkg.github.com/SANTHAN-KUMAR/Banking-system</url>
 		</repository>
 	</distributionManagement>
 
