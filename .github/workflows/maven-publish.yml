@@ -6,7 +6,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,13 +23,15 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Build with Maven
-        # FIX: Set the working directory to 'Project files'
         working-directory: Project files
-        run: mvn -B package --file pom.xml -X -Dspring.profiles.active=test # Added -Dspring.profiles.active=test
-        
+        run: mvn -B package --file pom.xml -X -Dspring.profiles.active=test
+
+      - name: List target directory (debug step)
+        working-directory: Project files
+        run: ls -l target
+
       - name: Publish to GitHub Packages Apache Maven
-        # FIX: Apply the same working directory here
         working-directory: Project files
-        run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
+        run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml -Dspring.profiles.active=test
         env:
           GITHUB_TOKEN: ${{ github.token }}
