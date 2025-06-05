@@ -1,4 +1,5 @@
 # Real-Time Banking System: Project Roadmap
+[![Maven Package](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
 ## Removed integration with AWS
 
