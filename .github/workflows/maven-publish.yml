@@ -26,8 +26,8 @@ jobs:
       - name: Build with Maven
         # FIX: Set the working directory to 'Project files'
         working-directory: Project files
-        run: mvn -B package --file pom.xml
-
+        run: mvn -B package --file pom.xml -X -Dspring.profiles.active=test # Added -Dspring.profiles.active=test
+        
       - name: Publish to GitHub Packages Apache Maven
         # FIX: Apply the same working directory here
         working-directory: Project files
