@@ -8,7 +8,8 @@
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
 
 ---
-## Currently in Phase - 4
+## Currently in Phase - 4 & Yet to generate tests using JUnit or Mockito. (Both unit and integration tests) 
+(Some of the tests were written but failed during the time of running them - refer them) [Note : Test files are not yet updated in the repo]
 
 ### Updated the edit and delete options for the admin controll panel, successfully edits and deletes any account or user now!
 ## ~~Phase 0: Foundation~~ (Completed)
