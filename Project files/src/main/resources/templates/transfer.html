@@ -1,92 +1,97 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Transfer Funds</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
-    h1 { color: #333; }
-    form {
-        background-color: #fff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        max-width: 500px;
-        margin: 20px auto;
-    }
-    div { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-    input[type="number"],
-    input[type="text"],
-    select {
-        width: calc(100% - 22px);
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 600px; margin: auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group select,
+    .form-group textarea {
+        width: calc(100% - 22px); /* Account for padding and border */
         padding: 10px;
         border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 16px;
+        border-radius: 5px;
+        font-size: 1em;
     }
-    .button {
-        padding: 10px 20px;
-        background-color: #007bff; /* Blue for transfer */
+    .form-group input[readonly] {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+    }
+    .form-group input[type="submit"] {
+        background-color: #007bff;
         color: white;
+        padding: 10px 20px;
         border: none;
         border-radius: 5px;
         cursor: pointer;
-        font-size: 16px;
+        font-size: 1em;
+        margin-right: 10px;
     }
-    .button:hover { background-color: #0056b3; }
-    .back-button {
-        background-color: #6c757d;
-        margin-left: 10px;
-    }
-    .back-button:hover { background-color: #5a6268; }
-    .error-message {
-        color: red;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
-    .success-message {
-        color: green;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
+    .form-group input[type="submit"]:hover { background-color: #0056b3; }
+    .back-link { display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; }
+    .back-link:hover { background-color: #5a6268; }
+    .error-message { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+    .success-message { color: #28a745; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
   </style>
 </head>
 <body>
-<h1>Transfer Funds from Account: <span th:text="${sourceAccount.accountNumber}"></span></h1>
-<p>Current Balance: <span th:text="${sourceAccount.balance}"></span></p>
+<div class="container">
+  <h1>Transfer Funds</h1>
 
-<div th:if="${error}" class="error-message">
-  <p th:text="${error}"></p>
-</div>
-<div th:if="${success}" class="success-message">
-  <p th:text="${success}"></p>
-</div>
+  <!-- Display flash messages if any -->
+  <div th:if="${success}" class="success-message">
+    <p th:text="${success}"></p>
+  </div>
+  <div th:if="${error}" class="error-message">
+    <p th:text="${error}"></p>
+  </div>
 
-<form th:action="@{'/accounts/' + ${sourceAccount.id} + '/transfer'}" method="post">
-  <div>
-    <label for="destinationAccountId">Transfer To Account:</label>
-    <select id="destinationAccountId" name="destinationAccountId" required>
-      <option value="">-- Select Destination Account --</option>
-      <option th:each="acc : ${accounts}"
-              th:if="${acc.id != sourceAccount.id}"
-              th:value="${acc.id}"
-              th:text="${acc.accountNumber + ' (Owner: ' + acc.user.username + ')'}">
-      </option>
-    </select>
-  </div>
-  <div>
-    <label for="amount">Amount:</label>
-    <input type="number" id="amount" name="amount" th:value="${amount}" step="0.01" min="0.01" required />
-  </div>
-  <div>
-    <label for="description">Description (optional):</label>
-    <input type="text" id="description" name="description" th:value="${description}" maxlength="255" />
-  </div>
-  <div>
-    <button type="submit" class="button">Transfer</button>
-    <a th:href="@{'/accounts/details/' + ${sourceAccount.id}}" class="button back-button">Back to Account Details</a>
-  </div>
-</form>
+  <form th:action="@{/accounts/{id}/transfer(id=${sourceAccount.id})}" method="post">
+    <!-- CSRF Token for Spring Security -->
+    <div th:if="${_csrf}">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+    </div>
+
+    <div class="form-group">
+      <label for="sourceAccount">From Account:</label>
+      <input type="text" id="sourceAccount"
+             th:value="${sourceAccount.accountNumber + ' (' + #numbers.formatCurrency(sourceAccount.balance) + ')'}"
+             readonly />
+      <input type="hidden" name="sourceAccountId" th:value="${sourceAccount.id}" />
+    </div>
+
+    <div class="form-group">
+      <label for="destinationAccountId">To Account:</label>
+      <select id="destinationAccountId" name="destinationAccountId" required>
+        <option value="">Select Destination Account</option>
+        <option th:each="account : ${allAccounts}"
+                th:value="${account.id}"
+                th:text="${account.accountNumber + ' (' + account.user.username + ')'}">Destination Account</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="amount">Amount:</label>
+      <input type="number" id="amount" name="amount" min="0.01" step="0.01" required />
+    </div>
+
+    <div class="form-group">
+      <label for="description">Description (Optional):</label>
+      <textarea id="description" name="description" rows="3"></textarea>
+    </div>
+
+    <div class="form-group">
+      <input type="submit" value="Transfer Funds" />
+      <a th:href="@{/accounts/details/{id}(id=${sourceAccount.id})}" class="back-link">Cancel</a>
+    </div>
+  </form>
+</div>
 </body>
 </html>

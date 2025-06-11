@@ -156,7 +156,8 @@
   <a th:href="@{'/accounts/' + ${account.id} + '/deposit'}" class="button deposit-btn">Deposit</a>
   <a th:href="@{'/accounts/' + ${account.id} + '/withdraw'}" class="button withdraw-btn">Withdraw</a>
   <a th:href="@{'/accounts/' + ${account.id} + '/transfer'}" class="button transfer-btn">Transfer</a>
-  <a th:href="@{'/accounts/' + ${account.id} + '/transactions'}" class="button transactions-btn">View Transactions</a>
+  <!-- <a th:href="@{'/accounts/' + ${account.id} + '/transactions'}" class="button transactions-btn">View Transactions</a> -->
+  <a th:href="@{/accounts/{id}/transactions(id=${account.id})}">View Transactions</a>
   <a th:href="@{/accounts}" class="button back-to-list-btn">Back to Account List</a>
 </div>
 

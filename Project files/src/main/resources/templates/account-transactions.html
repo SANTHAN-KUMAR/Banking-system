@@ -2,88 +2,82 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
-  <title>Transactions for Account: <span th:text="${account.accountNumber}"></span></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions for Account</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
-    h1 { color: #333; }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-        background-color: #fff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    th, td {
-        border: 1px solid #ddd;
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+    .container { max-width: 1000px; margin: auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1, h2 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background-color: #e9ecef; }
+    .back-link { display: block; margin-top: 30px; text-align: center; }
+    .back-link a { display: inline-block; padding: 10px 18px; margin: 8px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-size: 16px; cursor: pointer; border: none; min-width: 140px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .back-link a:hover { background-color: #5a6268; opacity: 0.9; transform: translateY(-1px); }
+
+    /* Styles for flash messages */
+    .success-message {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
         padding: 10px;
-        text-align: left;
-    }
-    th {
-        background-color: #007bff;
-        color: white;
-    }
-    tr:nth-child(even) { background-color: #f2f2f2; }
-    .back-button {
-        display: inline-block;
-        padding: 10px 20px;
-        background-color: #6c757d;
-        color: white;
-        border: none;
+        margin-bottom: 15px;
         border-radius: 5px;
-        cursor: pointer;
-        font-size: 16px;
-        text-decoration: none;
-        margin-top: 20px;
     }
-    .back-button:hover { background-color: #5a6268; }
-    .deposit { color: green; font-weight: bold; }
-    .withdrawal { color: red; font-weight: bold; }
-    .transfer { color: blue; font-weight: bold; }
+    .error-message {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+        padding: 10px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+    }
   </style>
 </head>
 <body>
-<h1>Transactions for Account: <span th:text="${account.accountNumber}"></span></h1>
-<p>Current Balance: <span th:text="${account.balance}"></span></p>
+<div class="container">
+  <h1 th:text="'Transactions for Account: ' + ${account.accountNumber}">Transactions for Account: XXXX</h1>
 
-<div th:if="${transactions.isEmpty()}">
-  <p>No transactions found for this account.</p>
-</div>
-<div th:unless="${transactions.isEmpty()}">
-  <table>
+  <!-- Display success message -->
+  <div th:if="${success}" class="success-message">
+    <p th:text="${success}"></p>
+  </div>
+  <!-- Display error message -->
+  <div th:if="${error}" class="error-message">
+    <p th:text="${error}"></p>
+  </div>
+
+  <table th:if="${not #lists.isEmpty(transactions)}">
     <thead>
     <tr>
       <th>ID</th>
       <th>Type</th>
       <th>Amount</th>
       <th>Description</th>
-      <th>Date</th>
       <th>Source Account</th>
       <th>Destination Account</th>
+      <th>Date</th>
     </tr>
     </thead>
     <tbody>
     <tr th:each="transaction : ${transactions}">
       <td th:text="${transaction.id}"></td>
-      <td>
-                        <span th:classappend="${transaction.transactionType == T(com.santhan.banking_system.model.TransactionType).DEPOSIT ? 'deposit' : (transaction.transactionType == T(com.santhan.banking_system.model.TransactionType).WITHDRAWAL ? 'withdrawal' : 'transfer')}"
-                              th:text="${transaction.transactionType}"></span>
-      </td>
-      <td th:text="${transaction.amount}"></td>
+      <td th:text="${transaction.type}"></td>
+      <td th:text="${#numbers.formatDecimal(transaction.amount, 0, 'COMMA', 2, 'POINT')}"></td>
       <td th:text="${transaction.description}"></td>
-      <td th:text="${#temporals.format(transaction.transactionDate, 'yyyy-MM-dd HH:mm:ss')}"></td>
-      <td>
-        <span th:if="${transaction.sourceAccount}" th:text="${transaction.sourceAccount.accountNumber}"></span>
-        <span th:unless="${transaction.sourceAccount}">N/A (External)</span>
-      </td>
-      <td>
-        <span th:if="${transaction.destinationAccount}" th:text="${transaction.destinationAccount.accountNumber}"></span>
-        <span th:unless="${transaction.destinationAccount}">N/A (External)</span>
-      </td>
+      <!-- Display source account number, or 'N/A' if null -->
+      <td th:text="${transaction.sourceAccount != null ? transaction.sourceAccount.accountNumber : 'N/A'}"></td>
+      <!-- Display destination account number, or 'N/A' if null -->
+      <td th:text="${transaction.destinationAccount != null ? transaction.destinationAccount.accountNumber : 'N/A'}"></td>
+      <td th:text="${#temporals.format(transaction.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
     </tr>
     </tbody>
   </table>
-</div>
+  <p th:if="${#lists.isEmpty(transactions)}">No transactions found for this account.</p>
 
-<a th:href="@{'/accounts/details/' + ${account.id}}" class="back-button">Back to Account Details</a>
+  <div class="back-link">
+    <a th:href="@{/accounts/details/{id}(id=${account.id})}">Back to Account Details</a>
+  </div>
+</div>
 </body>
 </html>
