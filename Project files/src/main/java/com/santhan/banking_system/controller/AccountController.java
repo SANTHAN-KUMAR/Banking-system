@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Controller
-@RequestMapping("/accounts")
+@RequestMapping("/accounts") // Base mapping for account-related endpoints
 public class AccountController {
 
     private final AccountService accountService;
@@ -36,7 +36,7 @@ public class AccountController {
     }
 
     @GetMapping
-    @Transactional // FIX: Add transactional to handle lazy loading in account-list.html
+    @Transactional
     public String listAccounts(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUsername = authentication.getName();
@@ -50,7 +50,6 @@ public class AccountController {
 
         User currentUser = currentUserOptional.get();
         List<Account> accounts = accountService.getAccountsByUserId(currentUser.getId());
-        // FIX: Ensure user within account is initialized if account-list.html accesses it
         accounts.forEach(account -> {
             if (account.getUser() != null) {
                 account.getUser().getUsername();
@@ -96,11 +95,10 @@ public class AccountController {
     }
 
     @GetMapping("/details/{id}")
-    @Transactional // FIX: Add transactional to handle lazy loading in account-details.html
+    @Transactional
     public String showAccountDetails(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
             Account account = accountService.getAccountById(id);
-            // FIX: Ensure user within account is initialized if account-details.html accesses it
             if (account.getUser() != null) {
                 account.getUser().getUsername();
             }
@@ -113,11 +111,10 @@ public class AccountController {
     }
 
     @GetMapping("/edit/{id}")
-    @Transactional // FIX: Add transactional if lazy-loaded fields are accessed in account-edit.html
+    @Transactional
     public String showEditAccountForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
             Account account = accountService.getAccountById(id);
-            // Ensure user within account is initialized if account-edit.html accesses it
             if (account.getUser() != null) {
                 account.getUser().getUsername();
             }
@@ -153,11 +150,10 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/deposit")
-    @Transactional // FIX: Add transactional if account-details are accessed
+    @Transactional
     public String showDepositForm(@PathVariable Long id, Model model) {
         try {
             Account account = accountService.getAccountById(id);
-            // Ensure user within account is initialized if deposit.html accesses it
             if (account.getUser() != null) {
                 account.getUser().getUsername();
             }
@@ -187,11 +183,10 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/withdraw")
-    @Transactional // FIX: Add transactional if account-details are accessed
+    @Transactional
     public String showWithdrawForm(@PathVariable Long id, Model model) {
         try {
             Account account = accountService.getAccountById(id);
-            // Ensure user within account is initialized if withdraw.html accesses it
             if (account.getUser() != null) {
                 account.getUser().getUsername();
             }
@@ -221,18 +216,16 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/transfer")
-    @Transactional // FIX: Add transactional if account details or all accounts are accessed
+    @Transactional
     public String showTransferForm(@PathVariable Long id, Model model) {
         try {
             Account sourceAccount = accountService.getAccountById(id);
-            // Ensure user within source account is initialized if transfer.html accesses it
             if (sourceAccount.getUser() != null) {
                 sourceAccount.getUser().getUsername();
             }
             model.addAttribute("sourceAccount", sourceAccount);
 
             List<Account> allAccounts = accountService.getAllAccounts();
-            // Ensure users within all accounts are initialized if transfer.html accesses them
             allAccounts.forEach(account -> {
                 if (account.getUser() != null) {
                     account.getUser().getUsername();
@@ -265,17 +258,15 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/transactions")
-    @Transactional // FIX: Add transactional to handle lazy loading in account-transactions.html
+    @Transactional
     public String viewAccountTransactions(@PathVariable Long id, Model model) {
         try {
             Account account = accountService.getAccountById(id);
-            // Ensure user within account is initialized if account-transactions.html accesses it
             if (account.getUser() != null) {
                 account.getUser().getUsername();
             }
 
             List<Transaction> transactions = transactionService.getTransactionsForAccount(id);
-            // Ensure source/destination accounts and their users are initialized in transactions
             transactions.forEach(transaction -> {
                 if (transaction.getSourceAccount() != null && transaction.getSourceAccount().getUser() != null) {
                     transaction.getSourceAccount().getUser().getUsername();
@@ -292,5 +283,32 @@ public class AccountController {
             model.addAttribute("error", e.getMessage());
             return "redirect:/accounts";
         }
+    }
+
+    // NEW METHOD: Handles the general "View All My Transactions" link from the dashboard
+    @GetMapping("/all-transactions") // Or just "/transactions" if you prefer
+    @Transactional // Ensure lazy-loaded data is initialized
+    public String viewAllMyTransactions(Model model) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+
+        User currentUser = userService.findByUsername(currentUsername)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found."));
+
+        List<Transaction> allUserTransactions = transactionService.getTransactionsForUser(currentUser.getId());
+
+        // Ensure associated accounts and users are initialized for the template
+        allUserTransactions.forEach(transaction -> {
+            if (transaction.getSourceAccount() != null && transaction.getSourceAccount().getUser() != null) {
+                transaction.getSourceAccount().getUser().getUsername();
+            }
+            if (transaction.getDestinationAccount() != null && transaction.getDestinationAccount().getUser() != null) {
+                transaction.getDestinationAccount().getUser().getUsername();
+            }
+        });
+
+        model.addAttribute("transactions", allUserTransactions);
+        model.addAttribute("title", "All My Transactions"); // Title for the page
+        return "all-transactions"; // Points to a new Thymeleaf template
     }
 }

@@ -9,8 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.ArrayList; // NEW: Import ArrayList
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.stream.Collectors; // NEW: Import Collectors
 
 @Service // Marks this class as a Spring Service component
 public class TransactionService {
@@ -152,5 +154,35 @@ public class TransactionService {
      */
     public List<Transaction> getTransactionsForAccount(Long accountId) {
         return transactionRepository.findBySourceAccount_IdOrDestinationAccount_Id(accountId, accountId);
+    }
+
+    /**
+     * NEW METHOD: Retrieves all transactions for all accounts owned by a specific user.
+     * @param userId The ID of the user.
+     * @return A consolidated list of all transactions related to the user's accounts.
+     */
+    @Transactional(readOnly = true) // Read-only transaction for fetching data
+    public List<Transaction> getTransactionsForUser(Long userId) {
+        // Find all accounts belonging to the user
+        List<Account> userAccounts = accountRepository.findByUserId(userId); // Assuming findByUserId exists in AccountRepository
+
+        List<Transaction> allUserTransactions = new ArrayList<>();
+
+        // For each account, get its transactions
+        for (Account account : userAccounts) {
+            // Use the existing method to get transactions for each account
+            List<Transaction> accountTransactions = getTransactionsForAccount(account.getId());
+            allUserTransactions.addAll(accountTransactions);
+        }
+
+        // Optional: Remove duplicates if a transaction might be linked to multiple of a user's accounts (e.g., self-transfer)
+        // Or if you want to sort them (e.g., by date)
+        // For simplicity, let's just return the list for now. Sorting can be done in the controller or template.
+
+        // Sort transactions by date (most recent first)
+        return allUserTransactions.stream()
+                .distinct() // Remove duplicates if a transaction is recorded for both source and destination if both are user's accounts
+                .sorted((t1, t2) -> t2.getTransactionDate().compareTo(t1.getTransactionDate())) // Sort by transactionDate descending
+                .collect(Collectors.toList());
     }
 }

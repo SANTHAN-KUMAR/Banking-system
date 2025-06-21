@@ -24,7 +24,7 @@
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}">Go to Admin Panel</a>
         <a sec:authorize="hasAnyRole('ADMIN', 'EMPLOYEE')" th:href="@{/employee/dashboard}">Go to Employee Panel</a>
         <a th:href="@{/accounts}">View My Accounts</a>
-        <a th:href="@{/transactions}">View My Transactions</a>
+        <a th:href="@{/accounts/all-transactions}">View My Transactions</a>
     </div>
 
     <form th:action="@{/logout}" method="post" class="logout-form">

@@ -2,7 +2,7 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
-  <title>Transactions for Account: <span th:text="${account.accountNumber}"></span></title>
+  <title th:text="${title}">All My Transactions</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
     h1 { color: #333; }
@@ -42,11 +42,10 @@
   </style>
 </head>
 <body>
-<h1>Transactions for Account: <span th:text="${account.accountNumber}"></span></h1>
-<p>Current Balance: <span th:text="${account.balance}"></span></p>
+<h1 th:text="${title}">All My Transactions</h1>
 
 <div th:if="${transactions.isEmpty()}">
-  <p>No transactions found for this account.</p>
+  <p>No transactions found for any of your accounts.</p>
 </div>
 <div th:unless="${transactions.isEmpty()}">
   <table>
@@ -65,14 +64,11 @@
     <tr th:each="transaction : ${transactions}">
       <td th:text="${transaction.id}"></td>
       <td>
-        <!-- FIX: Changed transaction.type to transaction.transactionType -->
-        <!-- FIX: Changed TransactionType.WITHDRAW to TransactionType.WITHDRAWAL -->
         <span th:classappend="${transaction.transactionType == T(com.santhan.banking_system.model.TransactionType).DEPOSIT ? 'deposit' : (transaction.transactionType == T(com.santhan.banking_system.model.TransactionType).WITHDRAWAL ? 'withdrawal' : 'transfer')}"
               th:text="${transaction.transactionType}"></span>
       </td>
       <td th:text="${transaction.amount}"></td>
       <td th:text="${transaction.description}"></td>
-      <!-- FIX: Changed transaction.createdAt to transaction.transactionDate -->
       <td th:text="${#temporals.format(transaction.transactionDate, 'yyyy-MM-dd HH:mm:ss')}"></td>
       <td>
         <span th:if="${transaction.sourceAccount}" th:text="${transaction.sourceAccount.accountNumber}"></span>
@@ -87,6 +83,6 @@
   </table>
 </div>
 
-<a th:href="@{'/accounts/details/' + ${account.id}}" class="back-button">Back to Account Details</a>
+<a th:href="@{/dashboard}" class="back-button">Back to Dashboard</a>
 </body>
 </html>
