@@ -1,9 +1,9 @@
 # Real-Time Banking System: Project Roadmap
 [![Maven Package](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
-## Removed integration with AWS
 
-## Notice : Rolled back to the 9th release! Now either fix the mapping issues or try to build the test cases for each of the files...!
+## Update : Created a new release (10th) that solved all the mapping issues for cross html files
+
 ## Implemented the CI/CD pipeline.
 
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
