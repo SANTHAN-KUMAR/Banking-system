@@ -12,64 +12,7 @@ This document outlines the development roadmap for our real-time banking system,
 
 ## Errors regarding mappings to be solved :
 
-When logged in with an admin account and tried to access the employee panel the page says this :
-
-```
-Employee Dashboard
-
-Welcome, Employee! This is the Employee Dashboard.
-
-This page is accessible to users with ADMIN or EMPLOYEE roles.
-Back to Main Dashboard
-```
-
-When logged with admin account and tried to access the admin panel, the page says this :
-```
-Whitelabel Error Page
-
-This application has no explicit mapping for /error, so you are seeing this as a fallback.
-Sat Jun 21 22:00:10 IST 2025
-There was an unexpected error (type=Internal Server Error, status=500).
-```
-
-When logged with admin account and tried accessing the view my acount section :
-```
-Whitelabel Error Page
-
-This application has no explicit mapping for /error, so you are seeing this as a fallback.
-Sat Jun 21 22:01:05 IST 2025
-There was an unexpected error (type=Internal Server Error, status=500).
-```
-
-When logged with admin account and tried accessing the view my transactions section:
-```
-Whitelabel Error Page
-
-This application has no explicit mapping for /error, so you are seeing this as a fallback.
-Sat Jun 21 22:02:05 IST 2025
-There was an unexpected error (type=Not Found, status=404).
-```
-
-When logged in with an employee account and tried accessing the employee panel, the page says this :
-```
-Employee Dashboard
-
-Welcome, Employee! This is the Employee Dashboard.
-
-This page is accessible to users with ADMIN or EMPLOYEE roles.
-Back to Main Dashboard
-```
-
-And there's no error in accessing the view my accounts section for employee account
-
-When logged in with an employee account and tried accessing the view my transactions option, the page says this :
-```
-Whitelabel Error Page
-
-This application has no explicit mapping for /error, so you are seeing this as a fallback.
-Sat Jun 21 22:04:17 IST 2025
-There was an unexpected error (type=Not Found, status=404).
-```
+Check under Issues #2
 
 ## Currently in Phase - 4 & Yet to generate tests using JUnit or Mockito. (Both unit and integration tests) 
 (Some of the tests were written but failed during the time of running them - refer them) [Note : Test files are not yet updated in the repo]
