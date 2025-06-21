@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.transaction.annotation.Transactional; // Import for @Transactional
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,8 +35,8 @@ public class AccountController {
         this.transactionService = transactionService;
     }
 
-    // Existing listAccounts method (already updated and working)
     @GetMapping
+    @Transactional // FIX: Add transactional to handle lazy loading in account-list.html
     public String listAccounts(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUsername = authentication.getName();
@@ -49,72 +50,82 @@ public class AccountController {
 
         User currentUser = currentUserOptional.get();
         List<Account> accounts = accountService.getAccountsByUserId(currentUser.getId());
+        // FIX: Ensure user within account is initialized if account-list.html accesses it
+        accounts.forEach(account -> {
+            if (account.getUser() != null) {
+                account.getUser().getUsername();
+            }
+        });
+
         model.addAttribute("accounts", accounts);
         return "account-list";
     }
 
-    // Modified showCreateAccountForm
     @GetMapping("/create")
     public String showCreateAccountForm(Model model, Authentication authentication) {
-        // You no longer need to add all users to the model
         model.addAttribute("account", new Account());
         model.addAttribute("accountTypes", AccountType.values());
-        // Optionally, you can add the current user's username for display if desired
-        // model.addAttribute("currentUsername", authentication.getName());
         return "account-create";
     }
 
-    // Modified createAccount to use the logged-in user's ID
     @PostMapping("/create")
     public String createAccount(@ModelAttribute("account") Account account,
-                                // Remove @RequestParam("userId") as we will get it from security context
                                 Model model,
                                 RedirectAttributes redirectAttributes) {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUsername = authentication.getName(); // Get username from logged-in user
+        String currentUsername = authentication.getName();
 
         User currentUser = userService.findByUsername(currentUsername)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found.")); // Should not happen
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found."));
 
         try {
             if (account.getBalance() == null || account.getBalance().compareTo(BigDecimal.ZERO) < 0) {
                 model.addAttribute("error", "Initial balance cannot be negative.");
-                model.addAttribute("accountTypes", AccountType.values()); // Add back for form re-display
+                model.addAttribute("accountTypes", AccountType.values());
                 return "account-create";
             }
-            // Pass the current user's ID to the service
             accountService.createAccount(currentUser.getId(), account);
             redirectAttributes.addFlashAttribute("success", "Account created successfully!");
             return "redirect:/accounts";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
-            model.addAttribute("accountTypes", AccountType.values()); // Add back for form re-display
+            model.addAttribute("accountTypes", AccountType.values());
             return "account-create";
         }
     }
 
     @GetMapping("/details/{id}")
+    @Transactional // FIX: Add transactional to handle lazy loading in account-details.html
     public String showAccountDetails(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
             Account account = accountService.getAccountById(id);
+            // FIX: Ensure user within account is initialized if account-details.html accesses it
+            if (account.getUser() != null) {
+                account.getUser().getUsername();
+            }
             model.addAttribute("account", account);
             return "account-details";
         } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage()); // Changed to 'error' for consistency
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/accounts";
         }
     }
 
     @GetMapping("/edit/{id}")
+    @Transactional // FIX: Add transactional if lazy-loaded fields are accessed in account-edit.html
     public String showEditAccountForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
             Account account = accountService.getAccountById(id);
+            // Ensure user within account is initialized if account-edit.html accesses it
+            if (account.getUser() != null) {
+                account.getUser().getUsername();
+            }
             model.addAttribute("account", account);
             model.addAttribute("accountTypes", AccountType.values());
             return "account-edit";
         } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage()); // Changed to 'error' for consistency
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/accounts";
         }
     }
@@ -126,42 +137,40 @@ public class AccountController {
                                 RedirectAttributes redirectAttributes) {
         try {
             accountService.updateAccountDetails(id, account);
-            redirectAttributes.addFlashAttribute("success", "Account updated successfully!"); // Changed to 'success' for consistency
+            redirectAttributes.addFlashAttribute("success", "Account updated successfully!");
             return "redirect:/accounts/details/" + id;
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
-            // Re-add necessary model attributes to keep the form populated if there's an error
-            model.addAttribute("account", account); // The account object with user's input
+            model.addAttribute("account", account);
             model.addAttribute("accountTypes", AccountType.values());
             return "account-edit";
-        } catch (Exception e) { // Catch any other unexpected exceptions
+        } catch (Exception e) {
             model.addAttribute("error", "An unexpected error occurred: " + e.getMessage());
-            // Re-add necessary model attributes to keep the form populated if there's an error
-            model.addAttribute("account", account); // The account object with user's input
+            model.addAttribute("account", account);
             model.addAttribute("accountTypes", AccountType.values());
             return "account-edit";
         }
     }
 
-    // --- New Transaction-Related Methods ---
-
-    // Show Deposit Form
     @GetMapping("/{id}/deposit")
+    @Transactional // FIX: Add transactional if account-details are accessed
     public String showDepositForm(@PathVariable Long id, Model model) {
         try {
             Account account = accountService.getAccountById(id);
+            // Ensure user within account is initialized if deposit.html accesses it
+            if (account.getUser() != null) {
+                account.getUser().getUsername();
+            }
             model.addAttribute("account", account);
-            model.addAttribute("amount", BigDecimal.ZERO); // Default amount
-            model.addAttribute("description", ""); // Default description
-            return "deposit"; // Corresponds to deposit.html
+            model.addAttribute("amount", BigDecimal.ZERO);
+            model.addAttribute("description", "");
+            return "deposit";
         } catch (IllegalArgumentException e) {
-            // If account not found, redirect to list with error
             model.addAttribute("error", e.getMessage());
             return "redirect:/accounts";
         }
     }
 
-    // Process Deposit
     @PostMapping("/{id}/deposit")
     public String deposit(@PathVariable Long id,
                           @RequestParam("amount") BigDecimal amount,
@@ -172,27 +181,30 @@ public class AccountController {
             redirectAttributes.addFlashAttribute("success", "Deposit successful!");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/accounts/" + id + "/deposit"; // Redirect back to the deposit form with error
+            return "redirect:/accounts/" + id + "/deposit";
         }
-        return "redirect:/accounts/details/" + id; // Redirect to account details after deposit
+        return "redirect:/accounts/details/" + id;
     }
 
-    // Show Withdrawal Form
     @GetMapping("/{id}/withdraw")
+    @Transactional // FIX: Add transactional if account-details are accessed
     public String showWithdrawForm(@PathVariable Long id, Model model) {
         try {
             Account account = accountService.getAccountById(id);
+            // Ensure user within account is initialized if withdraw.html accesses it
+            if (account.getUser() != null) {
+                account.getUser().getUsername();
+            }
             model.addAttribute("account", account);
             model.addAttribute("amount", BigDecimal.ZERO);
             model.addAttribute("description", "");
-            return "withdraw"; // Corresponds to withdraw.html
+            return "withdraw";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
             return "redirect:/accounts";
         }
     }
 
-    // Process Withdrawal
     @PostMapping("/{id}/withdraw")
     public String withdraw(@PathVariable Long id,
                            @RequestParam("amount") BigDecimal amount,
@@ -208,25 +220,36 @@ public class AccountController {
         return "redirect:/accounts/details/" + id;
     }
 
-    // Show Transfer Form
     @GetMapping("/{id}/transfer")
+    @Transactional // FIX: Add transactional if account details or all accounts are accessed
     public String showTransferForm(@PathVariable Long id, Model model) {
         try {
             Account sourceAccount = accountService.getAccountById(id);
+            // Ensure user within source account is initialized if transfer.html accesses it
+            if (sourceAccount.getUser() != null) {
+                sourceAccount.getUser().getUsername();
+            }
             model.addAttribute("sourceAccount", sourceAccount);
-            model.addAttribute("accounts", accountService.getAllAccounts()); // For selecting destination
+
+            List<Account> allAccounts = accountService.getAllAccounts();
+            // Ensure users within all accounts are initialized if transfer.html accesses them
+            allAccounts.forEach(account -> {
+                if (account.getUser() != null) {
+                    account.getUser().getUsername();
+                }
+            });
+            model.addAttribute("accounts", allAccounts);
             model.addAttribute("amount", BigDecimal.ZERO);
             model.addAttribute("description", "");
-            return "transfer"; // Corresponds to transfer.html
+            return "transfer";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
             return "redirect:/accounts";
         }
     }
 
-    // Process Transfer
     @PostMapping("/{id}/transfer")
-    public String transfer(@PathVariable Long id, // This 'id' is the sourceAccountId
+    public String transfer(@PathVariable Long id,
                            @RequestParam("destinationAccountId") Long destinationAccountId,
                            @RequestParam("amount") BigDecimal amount,
                            @RequestParam(value = "description", required = false) String description,
@@ -236,21 +259,35 @@ public class AccountController {
             redirectAttributes.addFlashAttribute("success", "Transfer successful!");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            // If error, redirect back to transfer form for source account
             return "redirect:/accounts/" + id + "/transfer";
         }
-        return "redirect:/accounts/details/" + id; // Redirect to source account details after transfer
+        return "redirect:/accounts/details/" + id;
     }
 
-    // View Account Transactions
     @GetMapping("/{id}/transactions")
+    @Transactional // FIX: Add transactional to handle lazy loading in account-transactions.html
     public String viewAccountTransactions(@PathVariable Long id, Model model) {
         try {
             Account account = accountService.getAccountById(id);
+            // Ensure user within account is initialized if account-transactions.html accesses it
+            if (account.getUser() != null) {
+                account.getUser().getUsername();
+            }
+
             List<Transaction> transactions = transactionService.getTransactionsForAccount(id);
+            // Ensure source/destination accounts and their users are initialized in transactions
+            transactions.forEach(transaction -> {
+                if (transaction.getSourceAccount() != null && transaction.getSourceAccount().getUser() != null) {
+                    transaction.getSourceAccount().getUser().getUsername();
+                }
+                if (transaction.getDestinationAccount() != null && transaction.getDestinationAccount().getUser() != null) {
+                    transaction.getDestinationAccount().getUser().getUsername();
+                }
+            });
+
             model.addAttribute("account", account);
             model.addAttribute("transactions", transactions);
-            return "account-transactions"; // Corresponds to account-transactions.html
+            return "account-transactions";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
             return "redirect:/accounts";

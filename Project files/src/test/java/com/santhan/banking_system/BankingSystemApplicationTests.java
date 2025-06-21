@@ -2,15 +2,16 @@ package com.santhan.banking_system;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.test.context.support.WithMockUser; // NEW import
-import org.springframework.test.context.ActiveProfiles; // Add this import
+import org.springframework.test.context.ActiveProfiles; // Import ActiveProfiles
 
 @SpringBootTest
-@ActiveProfiles("test") // Add this line
+@ActiveProfiles("test") // Explicitly activate the "test" profile for this test class
 class BankingSystemApplicationTests {
 
     @Test
-    @WithMockUser
     void contextLoads() {
+        // This test simply ensures that the Spring application context loads successfully.
+        // If it reaches this point, the context has loaded.
     }
+
 }
