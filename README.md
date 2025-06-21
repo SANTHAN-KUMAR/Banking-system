@@ -3,12 +3,17 @@
 
 ## Removed integration with AWS
 
-## Notice : The written test files are not fully implemented and there are still issues persistent in html file mapping, consider rolling back to the 9th release and build the test files from scratch!
+## Notice : Rolled back to the 9th release! Now either fix the mapping issues or try to build the test cases for each of the files...!
 ## Implemented the CI/CD pipeline.
 
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
 
 ---
+
+## Errors regarding mappings to be solved :
+
+Check under Issues #2
+
 ## Currently in Phase - 4 & Yet to generate tests using JUnit or Mockito. (Both unit and integration tests) 
 (Some of the tests were written but failed during the time of running them - refer them) [Note : Test files are not yet updated in the repo]
 
