@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <meta charset="UTF-8">
   <title>Account List</title>
@@ -41,7 +41,7 @@
 </div>
 
 <a th:href="@{/accounts/create}" class="button">Create New Account</a>
-<a th:href="@{/users}" class="button button-secondary">Back to Users</a>
+<a th:href="@{/dashboard}" class="button button-secondary">Back to Dashboard</a> <!-- Changed from /users -->
 
 <table>
   <thead>
@@ -67,7 +67,8 @@
     <td th:text="${#temporals.format(account.updatedAt, 'dd-MM-yyyy HH:mm')}">2023-01-01 10:00</td>
     <td>
       <a th:href="@{/accounts/details/{id}(id=${account.id})}" class="button button-info">Details</a>
-      <a th:href="@{/accounts/edit/{id}(id=${account.id})}" class="button button-warning">Edit</a>
+      <!-- Only ADMIN can edit accounts via the admin panel link -->
+      <a th:href="@{/admin/accounts/edit/{id}(id=${account.id})}" class="button button-warning" sec:authorize="hasRole('ADMIN')">Edit (Admin)</a>
     </td>
   </tr>
   </tbody>

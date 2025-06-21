@@ -1,16 +1,52 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <title>Employee Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 800px; margin: auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+        .welcome-message { margin-bottom: 20px; font-size: 1.1em; color: #555; }
+        .dashboard-links { margin-top: 20px; }
+        .dashboard-links a {
+            display: block;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background-color: #17a2b8; /* Info blue */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+        .dashboard-links a:hover {
+            background-color: #138496;
+        }
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .back-button:hover { background-color: #5a6268; }
+    </style>
 </head>
 <body>
-<h1>Employee Dashboard</h1>
-<p th:text="${message}"></p>
-<p>This page is accessible to users with ADMIN or EMPLOYEE roles.</p>
-<a th:href="@{/dashboard}">Back to Main Dashboard</a>
-<form th:action="@{/logout}" method="post">
-    <button type="submit">Logout</button>
-</form>
+<div class="container">
+    <h1>Employee Dashboard</h1>
+    <p class="welcome-message" th:text="${'Welcome, ' + username + '! ' + message}"></p>
+
+    <div class="dashboard-links">
+        <a th:href="@{/employee/users}">View All System Users</a>
+        <a th:href="@{/employee/accounts}">View All System Accounts</a>
+        <!-- Add other employee-specific links here -->
+    </div>
+
+    <a th:href="@{/dashboard}" class="back-button">Back to Main Dashboard</a>
+</div>
 </body>
 </html>

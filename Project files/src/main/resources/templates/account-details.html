@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <meta charset="UTF-8">
   <title>Account Details</title>
@@ -152,11 +152,15 @@
 </div>
 
 <div class="action-buttons-group">
-  <a th:href="@{'/accounts/edit/' + ${account.id}}" class="button edit-btn">Edit Account</a>
-  <a th:href="@{'/accounts/' + ${account.id} + '/deposit'}" class="button deposit-btn">Deposit</a>
-  <a th:href="@{'/accounts/' + ${account.id} + '/withdraw'}" class="button withdraw-btn">Withdraw</a>
-  <a th:href="@{'/accounts/' + ${account.id} + '/transfer'}" class="button transfer-btn">Transfer</a>
-  <a th:href="@{'/accounts/' + ${account.id} + '/transactions'}" class="button transactions-btn">View Transactions</a>
+  <!-- "Edit Account" for the customer to edit their own account, or for Admin -->
+  <!-- Assuming updateAccountDetails in AccountService should only allow specific fields to be updated by customer -->
+  <a th:href="@{'/accounts/edit/' + ${account.id}}" class="button edit-btn" sec:authorize="hasAnyRole('CUSTOMER', 'ADMIN')">Edit My Account</a>
+
+  <a th:href="@{'/accounts/' + ${account.id} + '/deposit'}" class="button deposit-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">Deposit</a>
+  <a th:href="@{'/accounts/' + ${account.id} + '/withdraw'}" class="button withdraw-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">Withdraw</a>
+  <a th:href="@{'/accounts/' + ${account.id} + '/transfer'}" class="button transfer-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">Transfer</a>
+  <a th:href="@{'/accounts/' + ${account.id} + '/transactions'}" class="button transactions-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">View Transactions</a>
+
   <a th:href="@{/accounts}" class="button back-to-list-btn">Back to Account List</a>
 </div>
 
