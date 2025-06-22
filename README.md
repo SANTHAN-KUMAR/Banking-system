@@ -10,10 +10,6 @@ This document outlines the development roadmap for our real-time banking system,
 
 ---
 
-## Errors regarding mappings to be solved :
-
-Check under Issues #2
-
 ## Currently in Phase - 4 & Yet to generate tests using JUnit or Mockito. (Both unit and integration tests) 
 (Some of the tests were written but failed during the time of running them - refer them) [Note : Test files are not yet updated in the repo]
 
