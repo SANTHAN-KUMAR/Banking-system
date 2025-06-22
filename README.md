@@ -2,7 +2,7 @@
 [![Maven Package](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
 
-## Update : Created a new release (10th) that solved all the mapping issues for cross html files
+## Update : Created a new release (v2.3) that solved all the mapping issues for cross html files
 
 ## Implemented the CI/CD pipeline.
 
