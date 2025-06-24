@@ -80,7 +80,6 @@ public class AccountService {
             existingAccount.setUser(newOwner);
         }
 
-
         return accountRepository.save(existingAccount);
     }
 
@@ -91,7 +90,8 @@ public class AccountService {
 
         // --- CRUCIAL FIX: Delete all associated transactions first ---
         // Find transactions where this account is either the source or destination
-        List<Transaction> relatedTransactions = transactionRepository.findBySourceAccountOrDestinationAccount(accountToDelete, accountToDelete);
+        // FIX: Changed to use findBySourceAccount_IdOrDestinationAccount_Id which expects Long IDs
+        List<Transaction> relatedTransactions = transactionRepository.findBySourceAccount_IdOrDestinationAccount_Id(accountToDelete.getId(), accountToDelete.getId());
 
         if (relatedTransactions != null && !relatedTransactions.isEmpty()) {
             transactionRepository.deleteAll(relatedTransactions); // Delete all related transactions

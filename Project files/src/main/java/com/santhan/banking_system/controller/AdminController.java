@@ -4,6 +4,7 @@ import com.santhan.banking_system.model.User;
 import com.santhan.banking_system.model.Account;
 import com.santhan.banking_system.service.UserService;
 import com.santhan.banking_system.service.AccountService;
+import com.santhan.banking_system.service.TransactionService; // NEW: Import TransactionService
 import com.santhan.banking_system.model.AccountType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -12,44 +13,47 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.transaction.annotation.Transactional; // Import for @Transactional
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Arrays;
 
 @Controller
 @RequestMapping("/admin")
+// @PreAuthorize("hasRole('ADMIN')") // You can apply this at class level for all admin methods
 public class AdminController {
 
     private final UserService userService;
     private final AccountService accountService;
+    private final TransactionService transactionService; // NEW: Declare TransactionService
 
     @Autowired
-    public AdminController(UserService userService, AccountService accountService) {
+    public AdminController(UserService userService, AccountService accountService, TransactionService transactionService) { // NEW: Inject TransactionService
         this.userService = userService;
         this.accountService = accountService;
+        this.transactionService = transactionService; // NEW: Initialize TransactionService
     }
 
     @GetMapping("/dashboard")
-    @Transactional // FIX: Ensure this method runs within a transaction to prevent LazyInitializationException
+    @Transactional
     public String viewAdminDashboard(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         model.addAttribute("username", authentication.getName());
         model.addAttribute("message", "Welcome, Admin! This is the Admin Dashboard.");
 
         List<User> allUsers = userService.getAllUsers();
-        // FIX: Explicitly access lazy-loaded fields within the transaction for Thymeleaf
+        // Ensure roles are initialized for Thymeleaf
         allUsers.forEach(user -> {
             if (user.getRole() != null) {
-                user.getRole().name(); // Access to initialize role
+                user.getRole().name();
             }
         });
 
         List<Account> allAccounts = accountService.getAllAccounts();
-        // FIX: Explicitly access lazy-loaded fields within the transaction for Thymeleaf
+        // Ensure user details in accounts are initialized for Thymeleaf
         allAccounts.forEach(account -> {
             if (account.getUser() != null) {
-                account.getUser().getUsername(); // Access to initialize user within account
+                account.getUser().getUsername();
             }
         });
 
@@ -62,11 +66,10 @@ public class AdminController {
     // --- USER MANAGEMENT ---
 
     @GetMapping("/users/edit/{id}")
-    @Transactional // FIX: Add transactional if lazy-loaded fields are accessed in edit-user.html
+    @Transactional
     public String showEditUserForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
             User user = userService.getUserById(id);
-            // Ensure user's role is initialized if edit-user.html uses it
             if (user.getRole() != null) {
                 user.getRole().name();
             }
@@ -104,18 +107,16 @@ public class AdminController {
     // --- ACCOUNT MANAGEMENT ---
 
     @GetMapping("/accounts/edit/{id}")
-    @Transactional // FIX: Add transactional if lazy-loaded fields are accessed in edit-account.html
+    @Transactional
     public String showEditAccountForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
             Account account = accountService.getAccountById(id);
-            // Ensure account's user is initialized if edit-account.html uses it
             if (account.getUser() != null) {
-                account.getUser().getUsername(); // Access to initialize user
+                account.getUser().getUsername();
             }
             model.addAttribute("account", account);
             model.addAttribute("allAccountTypes", AccountType.values());
             List<User> allUsers = userService.getAllUsers();
-            // Ensure all users fetched for owner selection have their roles initialized
             allUsers.forEach(user -> {
                 if (user.getRole() != null) {
                     user.getRole().name();
@@ -149,5 +150,18 @@ public class AdminController {
             redirectAttributes.addFlashAttribute("error", "Error deleting account: " + e.getMessage());
         }
         return "redirect:/admin/dashboard";
+    }
+
+    // NEW METHOD: Endpoint to verify ledger integrity
+    @GetMapping("/verify-ledger")
+    // @PreAuthorize("hasRole('ADMIN')") // Can apply this specific pre-authorization here if not at class level
+    public String verifyLedger(Model model, RedirectAttributes redirectAttributes) {
+        boolean isIntact = transactionService.verifyLedgerIntegrity();
+        if (isIntact) {
+            redirectAttributes.addFlashAttribute("success", "Transaction ledger integrity verified successfully. No tampering detected!");
+        } else {
+            redirectAttributes.addFlashAttribute("error", "WARNING: Transaction ledger integrity check FAILED! Tampering detected.");
+        }
+        return "redirect:/admin/dashboard"; // Redirect back to admin dashboard
     }
 }

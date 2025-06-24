@@ -5,38 +5,75 @@ import com.santhan.banking_system.model.Transaction;
 import com.santhan.banking_system.model.TransactionType;
 import com.santhan.banking_system.repository.AccountRepository;
 import com.santhan.banking_system.repository.TransactionRepository;
+import com.santhan.banking_system.util.HashUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import java.util.ArrayList; // NEW: Import ArrayList
+import java.util.ArrayList;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.stream.Collectors; // NEW: Import Collectors
+import java.util.Optional;
+import java.util.stream.Collectors;
 
-@Service // Marks this class as a Spring Service component
+@Service
 public class TransactionService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
 
-    // Spring will automatically "inject" instances of AccountRepository and TransactionRepository
     @Autowired
     public TransactionService(AccountRepository accountRepository, TransactionRepository transactionRepository) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
     }
 
-    /**
-     * Handles a deposit into an account.
-     *
-     * @param accountId The ID of the account to deposit into.
-     * @param amount The amount to deposit. Must be positive.
-     * @param description A brief description for the transaction.
-     * @return The updated Account object.
-     * @throws IllegalArgumentException if the account is not found or amount is not positive.
-     */
-    @Transactional // Ensures the entire method runs as a single database operation (atomicity)
+    private Transaction createAndSaveChainedTransaction(
+            TransactionType type, BigDecimal amount, String description,
+            Account sourceAccount, Account destinationAccount) {
+
+        Transaction newTransaction = new Transaction(type, amount, description, sourceAccount, destinationAccount);
+
+        Optional<Transaction> latestTransactionOptional = transactionRepository.findLatestTransaction();
+        String previousHash = latestTransactionOptional.map(Transaction::getTransactionHash).orElse("0");
+
+        newTransaction.setPreviousTransactionHash(previousHash);
+
+        Transaction savedTransaction = transactionRepository.save(newTransaction);
+
+        // This is the string that gets hashed. We'll debug its construction.
+        String transactionDataString = HashUtil.generateTransactionDataString(
+                savedTransaction.getId(),
+                savedTransaction.getTransactionType(),
+                savedTransaction.getAmount(),
+                savedTransaction.getDescription(),
+                savedTransaction.getSourceAccount() != null ? savedTransaction.getSourceAccount().getId() : null,
+                savedTransaction.getDestinationAccount() != null ? savedTransaction.getDestinationAccount().getId() : null,
+                savedTransaction.getTransactionDate() // This is now an Instant
+        );
+
+        // --- START SUPER DEBUG LOGGING ---
+        System.out.println("\nDEBUG HASH INPUT FOR TRANSACTION ID " + savedTransaction.getId());
+        System.out.println("------------------------------------------------------------------");
+        System.out.println("Full String for Hashing: [" + transactionDataString + "]");
+        System.out.println("Length of string: " + transactionDataString.length());
+        System.out.println("Character by character breakdown:");
+        for (int i = 0; i < transactionDataString.length(); i++) {
+            char c = transactionDataString.charAt(i);
+            System.out.println("  Index " + i + ": Char='" + c + "' (Unicode: " + (int) c + ")");
+        }
+        System.out.println("------------------------------------------------------------------\n");
+        // --- END SUPER DEBUG LOGGING ---
+
+
+        String currentHash = HashUtil.calculateSHA256Hash(transactionDataString);
+        savedTransaction.setTransactionHash(currentHash);
+
+        return transactionRepository.save(savedTransaction);
+    }
+
+    @Transactional
     public Account deposit(Long accountId, BigDecimal amount, String description) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Deposit amount must be positive.");
@@ -45,34 +82,22 @@ public class TransactionService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found with ID: " + accountId));
 
-        // Update account balance
         account.setBalance(account.getBalance().add(amount));
-        account.setUpdatedAt(LocalDateTime.now()); // Update timestamp
+        account.setUpdatedAt(LocalDateTime.now());
         Account updatedAccount = accountRepository.save(account);
 
-        // Record the transaction
-        Transaction transaction = new Transaction(
+        createAndSaveChainedTransaction(
                 TransactionType.DEPOSIT,
                 amount,
                 description != null ? description : "Cash Deposit",
-                null, // No source account for a deposit from external source
-                updatedAccount // Destination account is the one being deposited into
+                null,
+                updatedAccount
         );
-        transactionRepository.save(transaction);
 
         return updatedAccount;
     }
 
-    /**
-     * Handles a withdrawal from an account.
-     *
-     * @param accountId The ID of the account to withdraw from.
-     * @param amount The amount to withdraw. Must be positive.
-     * @param description A brief description for the transaction.
-     * @return The updated Account object.
-     * @throws IllegalArgumentException if the account is not found, amount is not positive, or insufficient funds.
-     */
-    @Transactional // Ensures atomicity
+    @Transactional
     public Account withdraw(Long accountId, BigDecimal amount, String description) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Withdrawal amount must be positive.");
@@ -81,108 +106,120 @@ public class TransactionService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found with ID: " + accountId));
 
-        // Check for sufficient funds
         if (account.getBalance().compareTo(amount) < 0) {
             throw new IllegalArgumentException("Insufficient funds for withdrawal. Current balance: " + account.getBalance());
         }
 
-        // Update account balance
         account.setBalance(account.getBalance().subtract(amount));
-        account.setUpdatedAt(LocalDateTime.now()); // Update timestamp
+        account.setUpdatedAt(LocalDateTime.now());
         Account updatedAccount = accountRepository.save(account);
 
-        // Record the transaction
-        Transaction transaction = new Transaction(
+        createAndSaveChainedTransaction(
                 TransactionType.WITHDRAWAL,
                 amount,
                 description != null ? description : "Cash Withdrawal",
-                updatedAccount, // Source account is the one being withdrawn from
-                null // No destination account for a withdrawal to external destination
+                updatedAccount,
+                null
         );
-        transactionRepository.save(transaction);
 
         return updatedAccount;
     }
 
-    /**
-     * Handles a transfer of funds between two accounts.
-     *
-     * @param sourceAccountId The ID of the account to transfer from.
-     * @param destinationAccountId The ID of the account to transfer to.
-     * @param amount The amount to transfer. Must be positive.
-     * @param description A brief description for the transaction.
-     * @throws IllegalArgumentException if accounts are not found, amount is not positive, or insufficient funds.
-     */
-    @Transactional // Ensures atomicity for both debit and credit operations
+    @Transactional
     public void transfer(Long sourceAccountId, Long destinationAccountId, BigDecimal amount, String description) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Transfer amount must be positive.");
-        }
-        if (sourceAccountId.equals(destinationAccountId)) {
-            throw new IllegalArgumentException("Cannot transfer to the same account.");
-        }
+        String baseDescriptionForTransferType = description != null ? description : "Funds Transfer";
 
-        // Withdraw from source (this will handle insufficient funds check)
-        // Note: We're calling our own withdraw and deposit methods.
-        // This is safe because they are also @Transactional, and Spring handles nested transactions.
-        Account sourceAccount = withdraw(sourceAccountId, amount,
-                "Transfer to Account " + destinationAccountId + (description != null ? ": " + description : ""));
+        Account sourceAccount = withdraw(sourceAccountId, amount, "Transfer related withdrawal");
+        Account destinationAccount = deposit(destinationAccountId, amount, "Transfer related deposit");
 
-        // Deposit to destination
-        Account destinationAccount = deposit(destinationAccountId, amount,
-                "Transfer from Account " + sourceAccountId + (description != null ? ": " + description : ""));
-
-        // For a transfer, we want to record ONE transaction that links both accounts.
-        // We'll create a new Transaction object here directly, bypassing the single-account
-        // constructors from deposit/withdraw, as those implicitly handle the null account.
-        // This unified record is better for traceability of transfers.
-        Transaction transferRecord = new Transaction(
+        createAndSaveChainedTransaction(
                 TransactionType.TRANSFER,
                 amount,
-                description != null ? description : "Funds Transfer",
+                baseDescriptionForTransferType,
                 sourceAccount,
                 destinationAccount
         );
-        transactionRepository.save(transferRecord);
     }
 
-    /**
-     * Retrieves all transactions for a given account.
-     * This uses the custom query method we defined in TransactionRepository.
-     * @param accountId The ID of the account.
-     * @return A list of transactions related to the account.
-     */
     public List<Transaction> getTransactionsForAccount(Long accountId) {
         return transactionRepository.findBySourceAccount_IdOrDestinationAccount_Id(accountId, accountId);
     }
 
-    /**
-     * NEW METHOD: Retrieves all transactions for all accounts owned by a specific user.
-     * @param userId The ID of the user.
-     * @return A consolidated list of all transactions related to the user's accounts.
-     */
-    @Transactional(readOnly = true) // Read-only transaction for fetching data
+    @Transactional(readOnly = true)
     public List<Transaction> getTransactionsForUser(Long userId) {
-        // Find all accounts belonging to the user
-        List<Account> userAccounts = accountRepository.findByUserId(userId); // Assuming findByUserId exists in AccountRepository
-
+        List<Account> userAccounts = accountRepository.findByUserId(userId);
         List<Transaction> allUserTransactions = new ArrayList<>();
 
-        // For each account, get its transactions
         for (Account account : userAccounts) {
-            // Use the existing method to get transactions for each account
             List<Transaction> accountTransactions = getTransactionsForAccount(account.getId());
             allUserTransactions.addAll(accountTransactions);
         }
 
-        // Optional: Remove duplicates if a transaction might be linked to multiple of a user's accounts (e.g., self-transfer)
-        // Or if you want to sort them (e.g., by date)
-        // For simplicity, let's just return the list for now. Sorting can be done in the controller or template.
-
-        // Sort transactions by date (most recent first)
         return allUserTransactions.stream()
-                .distinct() // Remove duplicates if a transaction is recorded for both source and destination if both are user's accounts
-                .sorted((t1, t2) -> t2.getTransactionDate().compareTo(t1.getTransactionDate())) // Sort by transactionDate descending
+                .distinct()
+                .sorted((t1, t2) -> t2.getTransactionDate().compareTo(t1.getTransactionDate()))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean verifyLedgerIntegrity() {
+        List<Transaction> allTransactions = transactionRepository.findAllByOrderByTransactionDateAscIdAsc();
+
+        String expectedPreviousHash = "0";
+
+        for (Transaction currentTransaction : allTransactions) {
+            String actualPreviousHash = currentTransaction.getPreviousTransactionHash();
+
+            boolean previousHashMatches = (actualPreviousHash == null && expectedPreviousHash.equals("0")) ||
+                    (actualPreviousHash != null && actualPreviousHash.equals(expectedPreviousHash));
+
+            if (!previousHashMatches) {
+                System.err.println("TAMPERING DETECTED: Previous hash mismatch for transaction ID " + currentTransaction.getId());
+                System.err.println("  Expected previous hash: " + expectedPreviousHash);
+                System.err.println("  Actual previous hash in DB: " + (actualPreviousHash == null ? "NULL" : actualPreviousHash));
+                return false;
+            }
+
+            Long sourceAccountId = (currentTransaction.getSourceAccount() != null) ? currentTransaction.getSourceAccount().getId() : null;
+            Long destinationAccountId = (currentTransaction.getDestinationAccount() != null) ? currentTransaction.getDestinationAccount().getId() : null;
+
+            String recalculatedHashInput = HashUtil.generateTransactionDataString(
+                    currentTransaction.getId(),
+                    currentTransaction.getTransactionType(),
+                    currentTransaction.getAmount(),
+                    currentTransaction.getDescription(),
+                    sourceAccountId,
+                    destinationAccountId,
+                    currentTransaction.getTransactionDate()
+            );
+
+            // --- START SUPER DEBUG LOGGING (Verification Side) ---
+            System.out.println("\nDEBUG HASH INPUT (VERIFICATION) FOR TRANSACTION ID " + currentTransaction.getId());
+            System.out.println("------------------------------------------------------------------");
+            System.out.println("Full String for Recalculation: [" + recalculatedHashInput + "]");
+            System.out.println("Length of string: " + recalculatedHashInput.length());
+            System.out.println("Character by character breakdown:");
+            for (int i = 0; i < recalculatedHashInput.length(); i++) {
+                char c = recalculatedHashInput.charAt(i);
+                System.out.println("  Index " + i + ": Char='" + c + "' (Unicode: " + (int) c + ")");
+            }
+            System.out.println("------------------------------------------------------------------\n");
+            // --- END SUPER DEBUG LOGGING (Verification Side) ---
+
+
+            String expectedCurrentHash = HashUtil.calculateSHA256Hash(recalculatedHashInput);
+
+            String actualCurrentHash = currentTransaction.getTransactionHash();
+            if (actualCurrentHash == null || !actualCurrentHash.equals(expectedCurrentHash)) {
+                System.err.println("TAMPERING DETECTED: Current hash mismatch for transaction ID " + currentTransaction.getId());
+                System.err.println("  Expected current hash (recalculated): " + expectedCurrentHash);
+                System.err.println("  Actual current hash in DB: " + (actualCurrentHash == null ? "NULL" : actualCurrentHash));
+                System.err.println("  Data string used for recalculation: [" + recalculatedHashInput + "]"); // Use brackets for clarity
+                return false;
+            }
+
+            expectedPreviousHash = currentTransaction.getTransactionHash();
+        }
+        return true;
     }
 }
