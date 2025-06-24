@@ -4,6 +4,7 @@
 
 ## Update : Created a new release (v2.3) that solved all the mapping issues for cross html files
 
+## Trying to solve the crypto hash error in Ledger!
 ## Implemented the CI/CD pipeline.
 
 This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
