@@ -9,11 +9,11 @@ import com.santhan.banking_system.util.HashUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.time.Instant; // Changed to Instant
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -22,11 +22,15 @@ public class TransactionService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final FraudAlertService fraudAlertService; // NEW: Inject FraudAlertService
 
     @Autowired
-    public TransactionService(AccountRepository accountRepository, TransactionRepository transactionRepository) {
+    public TransactionService(AccountRepository accountRepository,
+                              TransactionRepository transactionRepository,
+                              FraudAlertService fraudAlertService) { // NEW: Inject FraudAlertService
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
+        this.fraudAlertService = fraudAlertService; // Initialize FraudAlertService
     }
 
     private Transaction createAndSaveChainedTransaction(
@@ -42,7 +46,6 @@ public class TransactionService {
 
         Transaction savedTransaction = transactionRepository.save(newTransaction);
 
-        // This is the string that gets hashed. We'll debug its construction.
         String transactionDataString = HashUtil.generateTransactionDataString(
                 savedTransaction.getId(),
                 savedTransaction.getTransactionType(),
@@ -50,10 +53,10 @@ public class TransactionService {
                 savedTransaction.getDescription(),
                 savedTransaction.getSourceAccount() != null ? savedTransaction.getSourceAccount().getId() : null,
                 savedTransaction.getDestinationAccount() != null ? savedTransaction.getDestinationAccount().getId() : null,
-                savedTransaction.getTransactionDate() // This is now an Instant
+                savedTransaction.getTransactionDate()
         );
 
-        // --- START SUPER DEBUG LOGGING ---
+        // --- START SUPER DEBUG LOGGING (for saving) ---
         System.out.println("\nDEBUG HASH INPUT FOR TRANSACTION ID " + savedTransaction.getId());
         System.out.println("------------------------------------------------------------------");
         System.out.println("Full String for Hashing: [" + transactionDataString + "]");
@@ -70,7 +73,12 @@ public class TransactionService {
         String currentHash = HashUtil.calculateSHA256Hash(transactionDataString);
         savedTransaction.setTransactionHash(currentHash);
 
-        return transactionRepository.save(savedTransaction);
+        Transaction finalSavedTransaction = transactionRepository.save(savedTransaction); // Save again with hash
+
+        // NEW: Evaluate the transaction for fraud after it's successfully chained and saved
+        fraudAlertService.evaluateTransactionForFraud(finalSavedTransaction);
+
+        return finalSavedTransaction;
     }
 
     @Transactional
@@ -142,8 +150,17 @@ public class TransactionService {
     }
 
     public List<Transaction> getTransactionsForAccount(Long accountId) {
-        return transactionRepository.findBySourceAccount_IdOrDestinationAccount_Id(accountId, accountId);
+        // Updated to use findAllByOrderByTransactionDateAscIdAsc from TransactionRepository
+        // This makes sure we fetch transactions including their associated accounts/users.
+        // Then filter them by the accountId as source or destination.
+        List<Transaction> allTransactions = transactionRepository.findAllByOrderByTransactionDateAscIdAsc();
+        return allTransactions.stream()
+                .filter(t -> (t.getSourceAccount() != null && t.getSourceAccount().getId().equals(accountId)) ||
+                        (t.getDestinationAccount() != null && t.getDestinationAccount().getId().equals(accountId)))
+                .sorted((t1, t2) -> t2.getTransactionDate().compareTo(t1.getTransactionDate())) // Sort by date descending
+                .collect(Collectors.toList());
     }
+
 
     @Transactional(readOnly = true)
     public List<Transaction> getTransactionsForUser(Long userId) {
@@ -161,6 +178,13 @@ public class TransactionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Verifies the integrity of the transaction ledger.
+     * This method re-calculates hashes and checks if the chain is valid.
+     * It uses @EntityGraph in the repository to eager fetch associated data.
+     * It also handles potential null previous hashes gracefully.
+     * @return true if the ledger is intact, false if tampering is detected.
+     */
     @Transactional(readOnly = true)
     public boolean verifyLedgerIntegrity() {
         List<Transaction> allTransactions = transactionRepository.findAllByOrderByTransactionDateAscIdAsc();
@@ -214,7 +238,7 @@ public class TransactionService {
                 System.err.println("TAMPERING DETECTED: Current hash mismatch for transaction ID " + currentTransaction.getId());
                 System.err.println("  Expected current hash (recalculated): " + expectedCurrentHash);
                 System.err.println("  Actual current hash in DB: " + (actualCurrentHash == null ? "NULL" : actualCurrentHash));
-                System.err.println("  Data string used for recalculation: [" + recalculatedHashInput + "]"); // Use brackets for clarity
+                System.err.println("  Data string used for recalculation: [" + recalculatedHashInput + "]");
                 return false;
             }
 
