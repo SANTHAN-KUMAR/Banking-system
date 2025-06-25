@@ -2,7 +2,7 @@
 [![Maven Package](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
 
-## Update : Created a new release (v3.0)
+## Recent update : Published a new release with Fraud management dashboard added. (v3.1)
 
 ### From now on, the project follows the version 3 release code as it is updated to hybrid system from a basic banking system. current release is (v3.0-ledger check created)
 
