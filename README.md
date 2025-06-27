@@ -13,10 +13,11 @@ This document outlines the development roadmap for our real-time banking system,
 
 ## System Design of the project :
 
-![Editor _ Mermaid Chart-2025-06-27-172244](https://github.com/user-attachments/assets/59545cfe-dd74-4ab7-ae2c-41ec5486e5e2)
+![Editor _ Mermaid Chart-2025-06-27-173825](https://github.com/user-attachments/assets/ba299f4b-be23-478b-85eb-59ba17c22062)
 
 
-## Currently in Hybrif Phase - 3
+
+## Currently in Hybrid    Phase - 3
 
 ## ~~Phase 0: Foundation~~ (Completed)
 
