@@ -11,6 +11,11 @@ This document outlines the development roadmap for our real-time banking system,
 
 ---
 
+## System Design of the project :
+
+![Editor _ Mermaid Chart-2025-06-27-172244](https://github.com/user-attachments/assets/59545cfe-dd74-4ab7-ae2c-41ec5486e5e2)
+
+
 ## Currently in Phase - 4 & Yet to generate tests using JUnit or Mockito. (Both unit and integration tests) 
 
 ## ~~Phase 0: Foundation~~ (Completed)
