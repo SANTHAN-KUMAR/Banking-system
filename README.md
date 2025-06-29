@@ -7,8 +7,6 @@
 ### From now on, the project follows the version 3 release code as it is updated to hybrid system from a basic banking system.
 
 
-This document outlines the development roadmap for our real-time banking system, focusing on essential banking operations. We'll be taking an iterative approach, building out one major module at a time.
-
 ---
 
 ## System Design of the project :
