@@ -9,13 +9,13 @@
 
 ---
 
-## System Design of the project :
+## System Design of the project : (not yet full connected)
 
 ![Editor _ Mermaid Chart-2025-06-27-173825](https://github.com/user-attachments/assets/ba299f4b-be23-478b-85eb-59ba17c22062)
 
 
 
-## Currently in Hybrid    Phase - 3
+## Currently in Hybrid Phase - 3
 
 ## ~~Phase 0: Foundation~~ (Completed)
 
