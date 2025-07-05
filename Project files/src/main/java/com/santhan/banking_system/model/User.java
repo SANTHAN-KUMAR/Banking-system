@@ -1,6 +1,7 @@
 package com.santhan.banking_system.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.time.LocalDateTime; // Use java.time.LocalDateTime for modern Spring/JPA
 
 // Spring Security imports for UserDetails
@@ -19,17 +20,26 @@ public class User implements UserDetails { // <--- Implement UserDetails
     private Long id;
 
     @Column(unique = true, nullable = false)
+    @NotBlank(message = "Username is required")
+    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
+    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Username can only contain letters, numbers, and underscores")
     private String username;
 
     @Column(unique = true, nullable = false)
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
+    @Size(max = 100, message = "Email cannot exceed 100 characters")
     private String email;
 
     @Column(nullable = false, length = 60) // BCrypt passwords are 60 chars
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters long")
     private String password;
 
     // --- NEW ROLE FIELD ---
     @Enumerated(EnumType.STRING) // Store enum as String in DB ('ROLE_CUSTOMER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN')
     @Column(nullable = false) // Removed 'defaultValue' attribute due to compilation issue
+    @NotNull(message = "User role is required")
     private UserRole role;
     // ----------------------
 

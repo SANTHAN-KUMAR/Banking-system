@@ -1,6 +1,7 @@
 package com.santhan.banking_system.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -21,17 +22,24 @@ public class Account {
     private Long id;
 
     @Column(nullable = false, unique = true, length = 20)
+    @NotBlank(message = "Account number is required")
+    @Size(min = 10, max = 20, message = "Account number must be between 10 and 20 characters")
     private String accountNumber;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @NotNull(message = "Account type is required")
     private AccountType accountType;
 
     @Column(nullable = false, precision = 19, scale = 4)
+    @NotNull(message = "Balance is required")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Balance cannot be negative")
+    @Digits(integer = 15, fraction = 4, message = "Balance format is invalid")
     private BigDecimal balance;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @NotNull(message = "Account must be associated with a user")
     private User user;
 
     @Column(nullable = false, updatable = false)
