@@ -66,12 +66,17 @@ public class SecurityConfig {
                         // Publicly accessible paths
                         .requestMatchers("/register", "/login", "/", "/css/**", "/js/**", "/images/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll() // H2 console for development
+                        // API documentation endpoints
+                        .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // Admin specific paths
                         .requestMatchers("/admin/**").hasRole("ADMIN") // Only ADMIN can access /admin and sub-paths
 
                         // Employee specific paths
                         .requestMatchers("/employee/**").hasAnyRole("ADMIN", "EMPLOYEE") // ADMIN and EMPLOYEE can access /employee
+
+                        // API endpoints
+                        .requestMatchers("/api/**").hasAnyRole("ADMIN", "EMPLOYEE", "CUSTOMER")
 
                         // Customer specific paths (e.g., viewing their own accounts)
                         // Note: Actual data filtering (e.g., only user's own accounts) still needs to be in controller/service
