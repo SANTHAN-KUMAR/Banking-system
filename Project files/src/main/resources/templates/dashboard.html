@@ -2,71 +2,196 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard</title>
+    <title>User Dashboard</title>
+
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
-        .container { max-width: 800px; margin: auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
-        .welcome-message { margin-bottom: 20px; font-size: 1.1em; color: #555; }
-        .dashboard-links { margin-top: 20px; }
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2.2em;
+            font-weight: 700;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 15px;
+        }
+        .message {
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            text-align: center;
+            font-weight: 500;
+        }
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .kyc-status-message {
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            font-weight: 500;
+            text-align: center;
+        }
+        .kyc-prompt {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 18px 25px;
+            margin-top: 25px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(255,230,170,0.3);
+        }
+        .kyc-prompt a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.2s ease;
+        }
+        .kyc-prompt a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        .dashboard-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .dashboard-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
         .dashboard-links a {
-            display: block; /* Make each link take full width for easier clicking */
-            padding: 12px 15px;
-            margin-bottom: 10px;
+            padding: 15px;
             background-color: #007bff;
             color: white;
             text-decoration: none;
-            border-radius: 5px;
+            border-radius: 8px;
             text-align: center;
-            transition: background-color 0.3s ease;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,123,255,0.2);
         }
         .dashboard-links a:hover {
             background-color: #0056b3;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,123,255,0.3);
+        }
+        .dashboard-links a[style*="background-color: #28a745"] { background-color: #28a745; box-shadow: 0 4px 10px rgba(40,167,69,0.2); }
+        .dashboard-links a[style*="background-color: #28a745"]:hover { background-color: #218838; }
+        .dashboard-links a[style*="background-color: #17a2b8"] { background-color: #17a2b8; box-shadow: 0 4px 10px rgba(23,162,184,0.2); }
+        .dashboard-links a[style*="background-color: #17a2b8"]:hover { background-color: #138496; }
+        .dashboard-links a[style*="background-color: #6f42c1"] { background-color: #6f42c1; box-shadow: 0 4px 10px rgba(111,66,193,0.2); }
+        .dashboard-links a[style*="background-color: #6f42c1"]:hover { background-color: #5f37a6; }
+        .dashboard-links a[style*="background-color: #fd7e14"] { background-color: #fd7e14; box-shadow: 0 4px 10px rgba(253,126,20,0.2); }
+        .dashboard-links a[style*="background-color: #fd7e14"]:hover { background-color: #e66a0d; }
+
+        .logout-form {
+            text-align: center;
+            margin-top: 40px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 25px;
         }
         .logout-button {
-            display: block;
-            width: 100%;
-            padding: 10px 15px;
+            padding: 12px 30px;
             background-color: #dc3545;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 1em;
-            text-align: center;
-            text-decoration: none;
-            margin-top: 30px;
-            transition: background-color 0.3s ease;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 10px rgba(220,53,69,0.2);
         }
         .logout-button:hover {
             background-color: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(220,53,69,0.3);
+        }
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 25px;
+                margin-top: 10px;
+            }
+            h1 { font-size: 1.8em; }
+            .dashboard-links {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>Dashboard</h1>
-    <p class="welcome-message" th:text="${'Welcome, ' + username + '! ' + message}"></p>
+    <p class="welcome-message" th:text="${'Welcome, ' + user.username + '!'}"></p>
 
-    <div class="dashboard-links">
-        <!-- Link for Customers, Employees, and Admins to view their own accounts -->
-        <a th:href="@{/accounts}">View My Accounts</a>
-        <a th:href="@{/accounts/all-transactions}">View My Transactions</a>
+    <div th:if="${successMessage}" class="message success-message">
+        <p th:text="${successMessage}"></p>
+    </div>
+    <div th:if="${errorMessage}" class="message error-message">
+        <p th:text="${errorMessage}"></p>
+    </div>
 
-        <!-- Admin-specific links -->
-        <div sec:authorize="hasRole('ADMIN')">
-            <a th:href="@{/admin/dashboard}" style="background-color: #28a745;">Go to Admin Panel</a>
+    <div th:if="${kycStatusMessage}" class="kyc-status-message">
+        <p th:text="${kycStatusMessage}"></p>
+    </div>
+
+    <div th:if="${showKycPrompt}" class="kyc-prompt">
+        <p>Your account requires KYC verification. Please <a th:href="@{/kyc}">Complete Your KYC Details</a> to unlock full features.</p>
+    </div>
+
+    <div class="dashboard-section">
+        <h2>Account Actions</h2>
+        <div class="dashboard-links">
+            <a th:href="@{/accounts}">View My Accounts</a>
+            <a th:href="@{/accounts/all-transactions}">View My Transactions</a>
         </div>
+    </div>
 
-        <!-- Employee-specific links (accessible by ADMIN too) -->
-        <div sec:authorize="hasAnyRole('ADMIN', 'EMPLOYEE')">
+    <div sec:authorize="hasRole('ADMIN')" class="dashboard-section">
+        <h2>Admin Panel</h2>
+        <div class="dashboard-links">
+            <a th:href="@{/admin/dashboard}" style="background-color: #28a745;">Go to Admin Panel</a>
+            <a th:href="@{/admin/kyc-pending}" style="background-color: #ff9800;">Review Pending KYC</a>
+        </div>
+    </div>
+
+    <div sec:authorize="hasAnyRole('ADMIN', 'EMPLOYEE')" class="dashboard-section">
+        <h2>Employee Panel</h2>
+        <div class="dashboard-links">
             <a th:href="@{/employee/dashboard}" style="background-color: #17a2b8;">Go to Employee Panel</a>
             <a th:href="@{/employee/users}" style="background-color: #6f42c1;">View All System Users</a>
             <a th:href="@{/employee/accounts}" style="background-color: #fd7e14;">View All System Accounts</a>
         </div>
     </div>
 
-    <form th:action="@{/logout}" method="post">
+    <form th:action="@{/logout}" method="post" class="logout-form">
         <button type="submit" class="logout-button">Logout</button>
     </form>
 </div>

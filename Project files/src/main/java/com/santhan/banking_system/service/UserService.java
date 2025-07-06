@@ -2,19 +2,23 @@ package com.santhan.banking_system.service;
 
 import com.santhan.banking_system.model.User;
 import com.santhan.banking_system.model.Account; // Import Account model
+import com.santhan.banking_system.model.KycStatus; // NEW: Import KycStatus
+import com.santhan.banking_system.dto.KycSubmissionDto; // NEW: Import KycSubmissionDto
 import com.santhan.banking_system.repository.UserRepository;
-import com.santhan.banking_system.repository.AccountRepository; // Import AccountRepository for deleting accounts
+// Removed AccountRepository import as AccountService is injected
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+// Removed SimpleGrantedAuthority as User model should implement UserDetails directly or its roles are handled otherwise
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional; // Import Transactional
 
+import jakarta.persistence.EntityNotFoundException; // NEW: Import EntityNotFoundException for clarity
+
 import java.time.LocalDateTime;
-import java.util.Collections;
+// Removed Collections import as not explicitly used
 import java.util.List;
 import java.util.Optional;
 
@@ -42,7 +46,8 @@ public class UserService implements UserDetailsService {
         System.out.println("DEBUG: User details received by service BEFORE encoding:");
         System.out.println("DEBUG:   Username: '" + user.getUsername() + "'");
         System.out.println("DEBUG:   Email:    '" + user.getEmail() + "'");
-        System.out.println("DEBUG:   Password: '" + user.getPassword() + "'"); // This should be the raw password from the form
+        // Removed printing raw password for security reasons
+        // System.out.println("DEBUG:   Password: '" + user.getPassword() + "'"); // This should be the raw password from the form
 
         // Check if username or email already exists to prevent duplicates
         userRepository.findByUsername(user.getUsername()).ifPresent(u -> {
@@ -56,8 +61,17 @@ public class UserService implements UserDetailsService {
 
         // IMPORTANT: Encode the password before saving it to the database
         String encodedPassword = passwordEncoder.encode(user.getPassword());
-        user.setPassword(encodedPassword);
+        user.setPassword(encodedPassword); // Using setPassword based on your current code
         System.out.println("DEBUG: Password after encoding: '" + encodedPassword + "'");
+
+        // Set default creation and update timestamps
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+
+        // NEW: Set default KYC status for newly created users if not already set
+        if (user.getKycStatus() == null) {
+            user.setKycStatus(KycStatus.PENDING);
+        }
 
         User savedUser = userRepository.save(user);
         System.out.println("DEBUG: User saved to database. Generated ID: " + savedUser.getId());
@@ -82,9 +96,6 @@ public class UserService implements UserDetailsService {
         user.setUsername(userDetails.getUsername());
         user.setEmail(userDetails.getEmail());
 
-        // FIX: Removed .isEmpty() check as getRole() likely returns an enum (UserRole)
-        // We only check if the role is not null. Validation for valid enum values
-        // should ideally happen at the controller or DTO level if the input is a String.
         if (userDetails.getRole() != null) {
             user.setRole(userDetails.getRole());
         }
@@ -97,21 +108,45 @@ public class UserService implements UserDetailsService {
         User userToDelete = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
-        // --- CRUCIAL FIX: Delete all associated accounts first ---
-        List<Account> userAccounts = accountService.getAccountsByUserId(id); // Use the AccountService
+        // Delete all associated accounts first using AccountService
+        List<Account> userAccounts = accountService.getAccountsByUserId(id);
         if (userAccounts != null && !userAccounts.isEmpty()) {
             for (Account account : userAccounts) {
-                // You might want to add more robust error handling here,
-                // or a specific method in AccountService to handle cascade deletion if needed.
-                // For now, we'll use the existing deleteAccount method.
                 accountService.deleteAccount(account.getId());
             }
             System.out.println("DEBUG: Deleted " + userAccounts.size() + " accounts for user ID: " + id);
         }
-        // --- End of CRUCIAL FIX ---
 
         userRepository.deleteById(id);
         System.out.println("DEBUG: User with ID: " + id + " deleted successfully.");
+    }
+
+    // NEW METHOD FOR KYC SUBMISSION
+    @Transactional // Ensures the entire method runs as a single transaction
+    public User submitKycDetails(Long userId, KycSubmissionDto kycDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
+
+        // Update user's KYC fields from the DTO
+        user.setFirstName(kycDto.getFirstName());
+        user.setLastName(kycDto.getLastName());
+        user.setDateOfBirth(kycDto.getDateOfBirth());
+        user.setAddress(kycDto.getAddress());
+        user.setNationalIdNumber(kycDto.getNationalIdNumber());
+        user.setDocumentType(kycDto.getDocumentType());
+
+        // Set KYC status to PENDING upon any submission/re-submission
+        user.setKycStatus(KycStatus.PENDING);
+        user.setKycSubmissionDate(LocalDateTime.now()); // Record when KYC was submitted
+
+        // kycVerifiedDate will be set by an admin action later
+
+        return userRepository.save(user); // Save the updated user entity
+    }
+
+    // NEW METHOD ADDED FOR ADMIN KYC REVIEW
+    public List<User> getUsersByKycStatus(KycStatus status) {
+        return userRepository.findByKycStatus(status);
     }
 
     @Override
@@ -121,6 +156,8 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
         System.out.println("DEBUG: Found user '" + user.getUsername() + "' for login with role: " + user.getRole());
 
+        // Assuming your 'User' entity directly implements Spring Security's UserDetails interface,
+        // or you have adapted it to do so.
         return user;
     }
 }

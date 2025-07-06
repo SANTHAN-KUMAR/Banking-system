@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your KYC</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            max-width: 550px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2.2em;
+            font-weight: 700;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 15px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 1em;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="date"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-group input[type="text"]:focus,
+        .form-group input[type="date"]:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+            outline: none;
+        }
+        .button-group {
+            display: flex;
+            justify-content: flex-end; /* Align buttons to the right */
+            gap: 15px; /* Space between buttons */
+            margin-top: 30px;
+        }
+        .button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.05em;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            text-decoration: none; /* For anchor tags */
+            text-align: center;
+            display: inline-block;
+        }
+        .button.submit {
+            background-color: #28a745;
+            color: white;
+            box-shadow: 0 4px 10px rgba(40,167,69,0.2);
+        }
+        .button.submit:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(40,167,69,0.3);
+        }
+        .button.cancel {
+            background-color: #6c757d;
+            color: white;
+            box-shadow: 0 4px 10px rgba(108,117,125,0.2);
+        }
+        .button.cancel:hover {
+            background-color: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(108,117,125,0.3);
+        }
+        .error-message {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+            text-align: center;
+        }
+        .field-error {
+            color: #dc3545;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: block;
+        }
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 25px;
+                margin-top: 10px;
+            }
+            h1 { font-size: 1.8em; }
+            .button-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Complete Your KYC</h1>
+
+    <div th:if="${error}" class="error-message">
+        <p th:text="${error}"></p>
+    </div>
+
+    <form th:action="@{/kyc/submit}" th:object="${kycSubmissionDto}" method="post">
+        <!-- Removed CSRF Token line as CSRF is disabled in SecurityConfig -->
+        <!-- <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" /> -->
+
+        <div class="form-group">
+            <label for="firstName">First Name:</label>
+            <input type="text" id="firstName" th:field="*{firstName}" required />
+            <span th:if="${#fields.hasErrors('firstName')}" th:errors="*{firstName}" class="field-error"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="lastName">Last Name:</label>
+            <input type="text" id="lastName" th:field="*{lastName}" required />
+            <span th:if="${#fields.hasErrors('lastName')}" th:errors="*{lastName}" class="field-error"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="dateOfBirth">Date of Birth:</label>
+            <!-- Use type="date" for native date picker, format for LocalDate binding -->
+            <input type="date" id="dateOfBirth" th:field="*{dateOfBirth}" required />
+            <span th:if="${#fields.hasErrors('dateOfBirth')}" th:errors="*{dateOfBirth}" class="field-error"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="address">Address:</label>
+            <textarea id="address" th:field="*{address}" rows="4" required></textarea>
+            <span th:if="${#fields.hasErrors('address')}" th:errors="*{address}" class="field-error"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="documentType">Document Type:</label>
+            <select id="documentType" th:field="*{documentType}" required>
+                <option value="">Select Document Type</option>
+                <option value="Aadhaar Card">Aadhaar Card</option>
+                <option value="Passport">Passport</option>
+                <option value="Driver's License">Driver's License</option>
+                <option value="Voter ID">Voter ID</option>
+                <option value="PAN Card">PAN Card</option>
+            </select>
+            <span th:if="${#fields.hasErrors('documentType')}" th:errors="*{documentType}" class="field-error"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="nationalIdNumber">National ID Number:</label>
+            <input type="text" id="nationalIdNumber" th:field="*{nationalIdNumber}" required />
+            <span th:if="${#fields.hasErrors('nationalIdNumber')}" th:errors="*{nationalIdNumber}" class="field-error"></span>
+        </div>
+
+        <div class="button-group">
+            <button type="submit" class="button submit">Submit KYC</button>
+            <a th:href="@{/dashboard}" class="button cancel">Cancel</a>
+        </div>
+    </form>
+</div>
+</body>
+</html>

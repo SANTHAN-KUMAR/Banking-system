@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review KYC - Admin</title>
+    <link rel="stylesheet" th:href="@{/css/admin_styles.css}" />
+    <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; color: #333; }
+        .container { background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 800px; margin: 20px auto; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
+        .user-detail-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-bottom: 20px; }
+        .user-detail-grid strong { color: #555; }
+        .kyc-actions { text-align: center; margin-top: 30px; }
+        .button { padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; margin: 0 10px; }
+        .button.approve { background-color: #28a745; color: white; }
+        .button.reject { background-color: #dc3545; color: white; }
+        .button.back { background-color: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Review KYC Submission</h1>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+
+    <div th:if="${userToReview != null}">
+        <h2>User Details: <span th:text="${userToReview.username}"></span></h2>
+        <div class="user-detail-grid">
+            <strong>User ID:</strong> <span th:text="${userToReview.id}"></span>
+            <strong>Email:</strong> <span th:text="${userToReview.email}"></span>
+            <strong>Current Role:</strong> <span th:text="${userToReview.role}"></span>
+            <strong>KYC Status:</strong> <span th:text="${userToReview.kycStatus}"></span>
+        </div>
+
+        <h3>Submitted KYC Information:</h3>
+        <div class="user-detail-grid">
+            <strong>First Name:</strong> <span th:text="${userToReview.firstName}"></span>
+            <strong>Last Name:</strong> <span th:text="${userToReview.lastName}"></span>
+            <strong>Date of Birth:</strong> <span th:text="${userToReview.dateOfBirth}"></span>
+            <strong>Address:</strong> <span th:text="${userToReview.address}"></span>
+            <strong>Document Type:</strong> <span th:text="${userToReview.documentType}"></span>
+            <strong>National ID Number:</strong> <span th:text="${userToReview.nationalIdNumber}"></span>
+            <strong>Submission Date:</strong> <span th:text="${userToReview.kycSubmissionDate != null ? #temporals.format(userToReview.kycSubmissionDate, 'yyyy-MM-dd HH:mm:ss') : 'N/A'}"></span>
+            <span th:if="${userToReview.kycVerifiedDate}">
+                    <strong>Verified/Rejected Date:</strong> <span th:text="${#temporals.format(userToReview.kycVerifiedDate, 'yyyy-MM-dd HH:mm:ss')}"></span>
+                </span>
+        </div>
+
+        <div class="kyc-actions">
+            <a th:href="@{/admin/kyc-pending}" class="button back">Back to Pending KYC</a>
+        </div>
+    </div>
+    <div th:unless="${userToReview != null}">
+        <p>No user details found for review.</p>
+        <a th:href="@{/admin/kyc-pending}" class="button back">Back to Pending KYC</a>
+    </div>
+</div>
+</body>
+</html>

@@ -2,17 +2,18 @@ package com.santhan.banking_system.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime; // Use java.time.LocalDateTime for modern Spring/JPA
+import java.time.LocalDate; // NEW: Import LocalDate for dateOfBirth
 
 // Spring Security imports for UserDetails
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
-import java.util.List; // For List.of()
+import java.util.List;
 
 @Entity
 @Table(name = "users") // Ensure table name is explicitly "users"
-public class User implements UserDetails { // <--- Implement UserDetails
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,21 +28,37 @@ public class User implements UserDetails { // <--- Implement UserDetails
     @Column(nullable = false, length = 60) // BCrypt passwords are 60 chars
     private String password;
 
-    // --- NEW ROLE FIELD ---
     @Enumerated(EnumType.STRING) // Store enum as String in DB ('ROLE_CUSTOMER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN')
-    @Column(nullable = false) // Removed 'defaultValue' attribute due to compilation issue
+    @Column(nullable = false)
     private UserRole role;
-    // ----------------------
 
-    @Column(name = "created_at", nullable = false, updatable = false) // Explicitly map to snake_case, make updatable = false
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false) // Explicitly map to snake_case
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // --- NEW KYC Fields ---
+    @Enumerated(EnumType.STRING) // Store enum as String (e.g., "PENDING", "VERIFIED")
+    @Column(nullable = false)
+    private KycStatus kycStatus = KycStatus.PENDING; // Default to PENDING for new users
+
+    private String firstName;
+    private String lastName;
+    private LocalDate dateOfBirth; // Date of birth (e.g., 1990-01-15)
+    @Column(columnDefinition = "TEXT") // Use TEXT for potentially longer addresses
+    private String address;
+    @Column(unique = true) // National ID should ideally be unique
+    private String nationalIdNumber; // e.g., Aadhaar, SSN, Passport Number
+    private String documentType;     // e.g., "Aadhaar Card", "Passport", "Driver's License"
+    private LocalDateTime kycSubmissionDate; // When KYC data was submitted
+    private LocalDateTime kycVerifiedDate;   // When KYC was verified/rejected
+    // --- End NEW KYC Fields ---
 
     // --- Constructors ---
     public User() {
         // Default constructor required by JPA
+        this.kycStatus = KycStatus.PENDING; // Ensure default KYC status is set
     }
 
     public User(String username, String email, String password) {
@@ -49,6 +66,7 @@ public class User implements UserDetails { // <--- Implement UserDetails
         this.email = email;
         this.password = password;
         this.role = UserRole.ROLE_CUSTOMER; // Set default role for new users
+        this.kycStatus = KycStatus.PENDING; // Set default KYC status for new users
         // createdAt and updatedAt will be set by @PrePersist
     }
 
@@ -61,6 +79,7 @@ public class User implements UserDetails { // <--- Implement UserDetails
         this.id = id;
     }
 
+    @Override // From UserDetails
     public String getUsername() {
         return username;
     }
@@ -77,6 +96,7 @@ public class User implements UserDetails { // <--- Implement UserDetails
         this.email = email;
     }
 
+    @Override // From UserDetails
     public String getPassword() {
         return password;
     }
@@ -85,7 +105,6 @@ public class User implements UserDetails { // <--- Implement UserDetails
         this.password = password;
     }
 
-    // --- Getter and Setter for Role ---
     public UserRole getRole() {
         return role;
     }
@@ -93,7 +112,6 @@ public class User implements UserDetails { // <--- Implement UserDetails
     public void setRole(UserRole role) {
         this.role = role;
     }
-    // ----------------------------------
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -111,15 +129,93 @@ public class User implements UserDetails { // <--- Implement UserDetails
         this.updatedAt = updatedAt;
     }
 
+    // --- NEW KYC Getters and Setters ---
+    public KycStatus getKycStatus() {
+        return kycStatus;
+    }
+
+    public void setKycStatus(KycStatus kycStatus) {
+        this.kycStatus = kycStatus;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getNationalIdNumber() {
+        return nationalIdNumber;
+    }
+
+    public void setNationalIdNumber(String nationalIdNumber) {
+        this.nationalIdNumber = nationalIdNumber;
+    }
+
+    public String getDocumentType() {
+        return documentType;
+    }
+
+    public void setDocumentType(String documentType) {
+        this.documentType = documentType;
+    }
+
+    public LocalDateTime getKycSubmissionDate() {
+        return kycSubmissionDate;
+    }
+
+    public void setKycSubmissionDate(LocalDateTime kycSubmissionDate) {
+        this.kycSubmissionDate = kycSubmissionDate;
+    }
+
+    public LocalDateTime getKycVerifiedDate() {
+        return kycVerifiedDate;
+    }
+
+    public void setKycVerifiedDate(LocalDateTime kycVerifiedDate) {
+        this.kycVerifiedDate = kycVerifiedDate;
+    }
+    // --- End NEW KYC Getters and Setters ---
+
+
     // --- Lifecycle Callbacks for Auditing ---
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        // Ensure role is set on creation if somehow not set in constructor (e.g., if using default constructor + setters)
-        if (this.role == null) {
+        if (this.role == null) { // Ensure role is set if not by constructor
             this.role = UserRole.ROLE_CUSTOMER;
         }
+        if (this.kycStatus == null) { // Ensure KYC status is set if not by constructor
+            this.kycStatus = KycStatus.PENDING;
+        }
+        this.kycSubmissionDate = LocalDateTime.now(); // Set submission date on first persist
     }
 
     @PreUpdate
@@ -131,34 +227,20 @@ public class User implements UserDetails { // <--- Implement UserDetails
     // --- UserDetails interface implementations ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Spring Security expects roles as GrantedAuthority objects
-        // We create a list containing a SimpleGrantedAuthority for the user's role
         return List.of(new SimpleGrantedAuthority(role.name()));
     }
 
     @Override
-    public boolean isAccountNonExpired() {
-        // For simplicity, we assume accounts never expire. In a real app, this might be a boolean field.
-        return true;
-    }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() {
-        // For simplicity, we assume accounts are never locked. In a real app, this might be a boolean field.
-        return true;
-    }
+    public boolean isAccountNonLocked() { return true; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        // For simplicity, we assume credentials never expire. In a real app, this might be a boolean field.
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() {
-        // For simplicity, we assume accounts are always enabled. In a real app, this might be a boolean field.
-        return true;
-    }
+    public boolean isEnabled() { return true; }
     // ---------------------------------------------
 
     // Optional: toString for better debugging
@@ -168,8 +250,17 @@ public class User implements UserDetails { // <--- Implement UserDetails
                 "id=" + id +
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
-                ", password='[PROTECTED]'" + // Don't print password directly!
-                ", role=" + role + // Include role in toString
+                ", password='[PROTECTED]'" +
+                ", role=" + role +
+                ", kycStatus=" + kycStatus + // Include kycStatus in toString
+                ", firstName='" + firstName + '\'' +
+                ", lastName='" + lastName + '\'' +
+                ", dateOfBirth=" + dateOfBirth +
+                ", address='" + address + '\'' +
+                ", nationalIdNumber='" + nationalIdNumber + '\'' +
+                ", documentType='" + documentType + '\'' +
+                ", kycSubmissionDate=" + kycSubmissionDate +
+                ", kycVerifiedDate=" + kycVerifiedDate +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';

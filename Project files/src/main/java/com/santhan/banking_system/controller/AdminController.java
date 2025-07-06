@@ -2,6 +2,7 @@ package com.santhan.banking_system.controller;
 
 import com.santhan.banking_system.model.User;
 import com.santhan.banking_system.model.Account;
+import com.santhan.banking_system.model.KycStatus; // NEW: Import KycStatus
 import com.santhan.banking_system.service.UserService;
 import com.santhan.banking_system.service.AccountService;
 import com.santhan.banking_system.service.TransactionService;
@@ -24,6 +25,7 @@ import java.util.Arrays;
 
 @Controller
 @RequestMapping("/admin")
+@PreAuthorize("hasRole('ADMIN')") // Apply base authorization for the entire controller
 public class AdminController {
 
     private final UserService userService;
@@ -42,7 +44,6 @@ public class AdminController {
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public String viewAdminDashboard(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -52,14 +53,14 @@ public class AdminController {
         List<User> allUsers = userService.getAllUsers();
         allUsers.forEach(user -> {
             if (user.getRole() != null) {
-                user.getRole().name();
+                user.getRole().name(); // Eagerly fetch role if needed for display
             }
         });
 
         List<Account> allAccounts = accountService.getAllAccounts();
         allAccounts.forEach(account -> {
             if (account.getUser() != null) {
-                account.getUser().getUsername();
+                account.getUser().getUsername(); // Eagerly fetch username if needed for display
             }
         });
 
@@ -86,7 +87,6 @@ public class AdminController {
     // --- USER MANAGEMENT ---
 
     @GetMapping("/users/edit/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public String showEditUserForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
@@ -104,7 +104,6 @@ public class AdminController {
     }
 
     @PostMapping("/users/update/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public String updateUser(@PathVariable Long id, @ModelAttribute("user") User userDetails, RedirectAttributes redirectAttributes) {
         try {
             userService.updateUser(id, userDetails);
@@ -116,7 +115,6 @@ public class AdminController {
     }
 
     @PostMapping("/users/delete/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             userService.deleteUser(id);
@@ -130,7 +128,6 @@ public class AdminController {
     // --- ACCOUNT MANAGEMENT ---
 
     @GetMapping("/accounts/edit/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public String showEditAccountForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
@@ -156,7 +153,6 @@ public class AdminController {
     }
 
     @PostMapping("/accounts/update/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public String updateAccount(@PathVariable Long id, @ModelAttribute("account") Account accountDetails, RedirectAttributes redirectAttributes) {
         try {
             accountService.updateAccountDetails(id, accountDetails);
@@ -168,7 +164,6 @@ public class AdminController {
     }
 
     @PostMapping("/accounts/delete/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public String deleteAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             accountService.deleteAccount(id);
@@ -181,7 +176,6 @@ public class AdminController {
 
     // --- LEDGER INTEGRITY VERIFICATION ---
     @PostMapping("/verify-ledger")
-    @PreAuthorize("hasRole('ADMIN')")
     public String verifyLedger(RedirectAttributes redirectAttributes) {
         try {
             boolean isLedgerIntact = transactionService.verifyLedgerIntegrity();
@@ -197,6 +191,49 @@ public class AdminController {
         }
         return "redirect:/admin/dashboard";
     }
+
+    // --- KYC MANAGEMENT ---
+    @GetMapping("/kyc-pending")
+    // @PreAuthorize is already at the class level, but can be added here for specific override if needed
+    public String listPendingKycSubmissions(Model model) {
+        List<User> pendingKycUsers = userService.getUsersByKycStatus(KycStatus.PENDING);
+        // You might also want to include REQUIRES_RESUBMISSION here
+        // List<User> resubmissionKycUsers = userService.getUsersByKycStatus(KycStatus.REQUIRES_RESUBMISSION);
+        // pendingKycUsers.addAll(resubmissionKycUsers); // If you want to combine them
+
+        model.addAttribute("pendingKycUsers", pendingKycUsers);
+        model.addAttribute("kycStatusMessage", "Users with Pending KYC Submissions");
+        return "admin/admin-kyc-pending-list"; // Corrected path for Thymeleaf template
+    }
+
+    @GetMapping("/kyc-review/{id}")
+    @Transactional // To ensure all lazy-loaded user details (like firstName, address etc.) are available
+    public String showKycReviewDetails(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        try {
+            User user = userService.getUserById(id);
+            if (user == null) {
+                redirectAttributes.addFlashAttribute("error", "User not found for KYC review.");
+                return "redirect:/admin/kyc-pending";
+            }
+            // Ensure lazy-loaded fields are accessible if needed for display
+            // These lines trigger loading of the data within the transaction
+            user.getFirstName();
+            user.getLastName();
+            user.getAddress();
+            user.getNationalIdNumber();
+            user.getDocumentType();
+            user.getDateOfBirth();
+            user.getKycSubmissionDate();
+
+            model.addAttribute("userToReview", user);
+            model.addAttribute("allKycStatuses", KycStatus.values()); // For dropdown if you add actions later
+            return "admin/kyc-review-details"; // This will be your new Thymeleaf template
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error fetching KYC details: " + e.getMessage());
+            return "redirect:/admin/kyc-pending";
+        }
+    }
+
 
     // --- FRAUD ALERT MANAGEMENT (Dedicated Page) ---
     @GetMapping("/fraud-alerts")
@@ -262,7 +299,6 @@ public class AdminController {
     }
 
     @PostMapping("/alerts/delete/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public String deleteAlert(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             fraudAlertService.deleteAlert(id);
