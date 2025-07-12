@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Transactions - Admin</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 1200px; margin: auto; padding: 25px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; text-align: center; }
+        .message-success { color: green; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .message-error { color: red; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        tr:hover { background-color: #e9e9e9; }
+        .no-data { text-align: center; padding: 20px; font-style: italic; color: #777; }
+        .button {
+            display: inline-block;
+            padding: 8px 12px;
+            background-color: #dc3545; /* Red for danger/reversal */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .button:hover { background-color: #c82333; }
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+        .back-button:hover { background-color: #5a6268; }
+        .reversed { background-color: #ffcccc; } /* Style for reversed transactions */
+        .reversed-text { color: #cc0000; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Manage Transactions</h1>
+
+    <div th:if="${successMessage}" class="message-success" th:text="${successMessage}"></div>
+    <div th:if="${errorMessage}" class="message-error" th:text="${errorMessage}"></div>
+
+    <div th:if="${transactions.isEmpty()}" class="no-data">
+        <p>No transactions found.</p>
+    </div>
+    <div th:unless="${transactions.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Source Account</th>
+                <th>Destination Account</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="transaction : ${transactions}" th:classappend="${transaction.reversed} ? 'reversed'">
+                <td th:text="${transaction.id}"></td>
+                <td th:text="${transaction.transactionType}"></td>
+                <td th:text="${#numbers.formatCurrency(transaction.amount)}"></td>
+                <td th:text="${transaction.sourceAccount != null ? transaction.sourceAccount.accountNumber : 'N/A'}"></td>
+                <td th:text="${transaction.destinationAccount != null ? transaction.destinationAccount.accountNumber : 'N/A'}"></td>
+                <td th:text="${#temporals.format(transaction.transactionDate, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                <td>
+                    <span th:if="${transaction.reversed}" class="reversed-text">REVERSED</span>
+                    <span th:unless="${transaction.reversed}" th:text="${transaction.status}"></span>
+                </td>
+                <td>
+                    <form th:action="@{/admin/transactions/reverse/{id}(id=${transaction.id})}" method="post" onsubmit="return confirm('Are you sure you want to reverse this transaction? This action cannot be undone!');">
+                        <div th:if="${_csrf}">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                        </div>
+                        <button type="submit" class="button" th:disabled="${transaction.reversed}">Reverse</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <a th:href="@{/admin/dashboard}" class="back-button">Back to Admin Dashboard</a>
+</div>
+</body>
+</html>

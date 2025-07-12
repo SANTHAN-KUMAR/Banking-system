@@ -120,11 +120,9 @@
     <h1>Admin Dashboard</h1>
     <p th:text="${message}"></p>
 
-    <!-- Display success message -->
     <div th:if="${success}" class="success-message">
         <p th:text="${success}"></p>
     </div>
-    <!-- Display error message -->
     <div th:if="${error}" class="error-message">
         <p th:text="${error}"></p>
     </div>
@@ -138,14 +136,12 @@
         </form>
     </div>
 
-    <!-- NEW: Navigation Buttons -->
     <div class="nav-buttons">
         <a th:href="@{/admin/fraud-alerts}" sec:authorize="hasAnyRole('ADMIN', 'EMPLOYEE')">Manage All Fraud Alerts</a>
-        <!-- You can add other admin-specific links here if needed -->
+        <a th:href="@{/admin/transactions}" sec:authorize="hasRole('ADMIN')">Manage Transactions</a>
     </div>
 
 
-    <!-- NEW: Ledger Integrity Verification Button -->
     <div class="ledger-button-container">
         <form th:action="@{/admin/verify-ledger}" method="post" style="display:inline;">
             <div th:if="${_csrf}">
@@ -155,7 +151,6 @@
         </form>
     </div>
 
-    <!-- NEW: Fraud Alerts Section (Pending Alerts on Dashboard) -->
     <div class="fraud-alert-section">
         <h2>Pending Fraud Alerts (On Dashboard)</h2>
         <table th:if="${not #lists.isEmpty(pendingAlerts)}">

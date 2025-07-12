@@ -10,8 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
-import java.time.Instant; // Changed to Instant
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalDateTime; // Keep for Account updated_at field, if still used
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -22,15 +22,15 @@ public class TransactionService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
-    private final FraudAlertService fraudAlertService; // NEW: Inject FraudAlertService
+    private final FraudAlertService fraudAlertService;
 
     @Autowired
     public TransactionService(AccountRepository accountRepository,
                               TransactionRepository transactionRepository,
-                              FraudAlertService fraudAlertService) { // NEW: Inject FraudAlertService
+                              FraudAlertService fraudAlertService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
-        this.fraudAlertService = fraudAlertService; // Initialize FraudAlertService
+        this.fraudAlertService = fraudAlertService;
     }
 
     private Transaction createAndSaveChainedTransaction(
@@ -43,6 +43,8 @@ public class TransactionService {
         String previousHash = latestTransactionOptional.map(Transaction::getTransactionHash).orElse("0");
 
         newTransaction.setPreviousTransactionHash(previousHash);
+        newTransaction.setStatus("COMPLETED"); // Ensure status is set for new transactions
+        newTransaction.setReversed(false); // Ensure new transactions are not marked reversed
 
         Transaction savedTransaction = transactionRepository.save(newTransaction);
 
@@ -91,7 +93,7 @@ public class TransactionService {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found with ID: " + accountId));
 
         account.setBalance(account.getBalance().add(amount));
-        account.setUpdatedAt(LocalDateTime.now());
+        account.setUpdatedAt(LocalDateTime.now()); // Assuming you still use LocalDateTime for updated_at
         Account updatedAccount = accountRepository.save(account);
 
         createAndSaveChainedTransaction(
@@ -119,7 +121,7 @@ public class TransactionService {
         }
 
         account.setBalance(account.getBalance().subtract(amount));
-        account.setUpdatedAt(LocalDateTime.now());
+        account.setUpdatedAt(LocalDateTime.now()); // Assuming you still use LocalDateTime for updated_at
         Account updatedAccount = accountRepository.save(account);
 
         createAndSaveChainedTransaction(
@@ -135,24 +137,53 @@ public class TransactionService {
 
     @Transactional
     public void transfer(Long sourceAccountId, Long destinationAccountId, BigDecimal amount, String description) {
-        String baseDescriptionForTransferType = description != null ? description : "Funds Transfer";
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Transfer amount must be positive.");
+        }
 
-        Account sourceAccount = withdraw(sourceAccountId, amount, "Transfer related withdrawal");
-        Account destinationAccount = deposit(destinationAccountId, amount, "Transfer related deposit");
+        // Fetch accounts first to avoid multiple queries or potential issues if one is not found
+        Account sourceAccount = accountRepository.findById(sourceAccountId)
+                .orElseThrow(() -> new IllegalArgumentException("Source Account not found with ID: " + sourceAccountId));
+        Account destinationAccount = accountRepository.findById(destinationAccountId)
+                .orElseThrow(() -> new IllegalArgumentException("Destination Account not found with ID: " + destinationAccountId));
 
+        if (sourceAccount.getBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Insufficient funds in source account " + sourceAccount.getAccountNumber() + " for transfer.");
+        }
+
+        // Perform balance updates
+        sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
+        destinationAccount.setBalance(destinationAccount.getBalance().add(amount));
+
+        // Update timestamps (if used)
+        sourceAccount.setUpdatedAt(LocalDateTime.now());
+        destinationAccount.setUpdatedAt(LocalDateTime.now());
+
+        // Save updated accounts
+        accountRepository.save(sourceAccount);
+        accountRepository.save(destinationAccount);
+
+        // Create the transfer transaction (this will also save it and evaluate fraud)
         createAndSaveChainedTransaction(
                 TransactionType.TRANSFER,
                 amount,
-                baseDescriptionForTransferType,
+                description != null ? description : "Funds Transfer",
                 sourceAccount,
                 destinationAccount
         );
     }
 
+    public List<Transaction> getAllTransactions() {
+        // Fetch all transactions and ensure associated accounts/users are eagerly loaded if needed for display.
+        // For `findAll`, JPA might do lazy loading by default, so ensure your repository queries or @Transactional
+        // contexts load the necessary relationships or use DTOs.
+        // The `findAllByOrderByTransactionDateAscIdAsc()` method implicitly loads related entities if mapped correctly
+        // for the ledger verification, which might be suitable here as well.
+        return transactionRepository.findAllByOrderByTransactionDateAscIdAsc(); // Or just findAll()
+    }
+
+
     public List<Transaction> getTransactionsForAccount(Long accountId) {
-        // Updated to use findAllByOrderByTransactionDateAscIdAsc from TransactionRepository
-        // This makes sure we fetch transactions including their associated accounts/users.
-        // Then filter them by the accountId as source or destination.
         List<Transaction> allTransactions = transactionRepository.findAllByOrderByTransactionDateAscIdAsc();
         return allTransactions.stream()
                 .filter(t -> (t.getSourceAccount() != null && t.getSourceAccount().getId().equals(accountId)) ||
@@ -245,5 +276,110 @@ public class TransactionService {
             expectedPreviousHash = currentTransaction.getTransactionHash();
         }
         return true;
+    }
+
+
+    // NEW: Transaction Reversal Logic
+    @Transactional // Crucial for atomicity of financial operations
+    public void reverseTransaction(Long transactionId) {
+        Transaction originalTransaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Original transaction not found with ID: " + transactionId));
+
+        if (originalTransaction.isReversed()) {
+            throw new IllegalStateException("Transaction " + transactionId + " has already been reversed.");
+        }
+        if (!originalTransaction.getStatus().equals("COMPLETED")) { // Only reverse completed transactions
+            throw new IllegalStateException("Transaction " + transactionId + " cannot be reversed as its status is not COMPLETED.");
+        }
+        if (originalTransaction.getOriginalTransactionId() != null) {
+            throw new IllegalStateException("Transaction " + transactionId + " is itself a reversal and cannot be reversed again.");
+        }
+
+
+        // Determine source and destination accounts
+        Account sourceAccount = originalTransaction.getSourceAccount();
+        Account destinationAccount = originalTransaction.getDestinationAccount();
+        BigDecimal amount = originalTransaction.getAmount();
+        String originalDescription = originalTransaction.getDescription();
+        TransactionType originalTxnType = originalTransaction.getTransactionType(); // CORRECTED LINE HERE
+
+
+        String reversalDescription = "Reversal of Transaction ID " + originalTransaction.getId() + ": " + originalDescription;
+        Transaction reversalTransaction = new Transaction();
+        reversalTransaction.setAmount(amount);
+        reversalTransaction.setTransactionDate(Instant.now()); // Set current time for reversal
+        reversalTransaction.setDescription(reversalDescription);
+        reversalTransaction.setStatus("COMPLETED"); // Reversal transaction is also completed
+        reversalTransaction.setReversed(false); // A reversal transaction is not itself reversed
+        reversalTransaction.setOriginalTransactionId(originalTransaction.getId()); // Link to original transaction
+
+        switch (originalTxnType) {
+            case TRANSFER:
+                if (sourceAccount == null || destinationAccount == null) {
+                    throw new IllegalArgumentException("Transfer transaction must have both source and destination accounts.");
+                }
+                // Reversal for Transfer: Debit original destination, Credit original source
+                // Ensure original destination account has enough balance to reverse the credit
+                if (destinationAccount.getBalance().compareTo(amount) < 0) {
+                    throw new IllegalStateException("Destination account (" + destinationAccount.getAccountNumber() + ") has insufficient funds (" + destinationAccount.getBalance() + ") for transfer reversal of amount " + amount + ".");
+                }
+                destinationAccount.setBalance(destinationAccount.getBalance().subtract(amount)); // Debit original destination
+                accountRepository.save(destinationAccount);
+
+                sourceAccount.setBalance(sourceAccount.getBalance().add(amount)); // Credit original source
+                accountRepository.save(sourceAccount);
+
+                reversalTransaction.setTransactionType(TransactionType.TRANSFER_REVERSAL); // Use enum value directly
+                reversalTransaction.setSourceAccount(destinationAccount); // Source of reversal is original destination
+                reversalTransaction.setDestinationAccount(sourceAccount); // Destination of reversal is original source
+                break;
+
+            case DEPOSIT:
+                if (destinationAccount == null) {
+                    throw new IllegalArgumentException("Deposit transaction must have a destination account.");
+                }
+                // Reversal for Deposit: Debit the account where deposit was made
+                // Ensure account has enough balance to reverse the deposit
+                if (destinationAccount.getBalance().compareTo(amount) < 0) {
+                    throw new IllegalStateException("Account (" + destinationAccount.getAccountNumber() + ") has insufficient funds (" + destinationAccount.getBalance() + ") for deposit reversal of amount " + amount + ".");
+                }
+                destinationAccount.setBalance(destinationAccount.getBalance().subtract(amount)); // Debit the account
+                accountRepository.save(destinationAccount);
+
+                reversalTransaction.setTransactionType(TransactionType.DEPOSIT_REVERSAL); // Use enum value directly
+                reversalTransaction.setSourceAccount(destinationAccount); // The account is the source of the reversal outflow
+                reversalTransaction.setDestinationAccount(null); // No destination for a deposit reversal (it's an outflow from the account)
+                break;
+
+            case WITHDRAWAL:
+                if (sourceAccount == null) {
+                    throw new IllegalArgumentException("Withdrawal transaction must have a source account.");
+                }
+                // Reversal for Withdrawal: Credit the account from where withdrawal was made
+                sourceAccount.setBalance(sourceAccount.getBalance().add(amount)); // Credit the account
+                accountRepository.save(sourceAccount);
+
+                reversalTransaction.setTransactionType(TransactionType.WITHDRAWAL_REVERSAL); // Use enum value directly
+                reversalTransaction.setSourceAccount(null); // No source for a withdrawal reversal (it's an inflow to the account)
+                reversalTransaction.setDestinationAccount(sourceAccount); // The account is the destination of the reversal inflow
+                break;
+
+            default:
+                throw new IllegalArgumentException("Reversal logic not implemented for transaction type: " + originalTxnType.name());
+        }
+
+        // Save the reversal transaction, which will also handle its hash generation and chaining
+        createAndSaveChainedTransaction(
+                reversalTransaction.getTransactionType(),
+                reversalTransaction.getAmount(),
+                reversalTransaction.getDescription(),
+                reversalTransaction.getSourceAccount(),
+                reversalTransaction.getDestinationAccount()
+        );
+
+        // Mark the original transaction as reversed
+        originalTransaction.setReversed(true);
+        originalTransaction.setStatus("REVERSED"); // Update status to REVERSED
+        transactionRepository.save(originalTransaction);
     }
 }

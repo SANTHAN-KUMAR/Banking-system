@@ -2,14 +2,17 @@ package com.santhan.banking_system.controller;
 
 import com.santhan.banking_system.model.User;
 import com.santhan.banking_system.model.Account;
-import com.santhan.banking_system.model.KycStatus; // NEW: Import KycStatus
-import com.santhan.banking_system.service.UserService;
-import com.santhan.banking_system.service.AccountService;
-import com.santhan.banking_system.service.TransactionService;
-import com.santhan.banking_system.service.FraudAlertService;
+import com.santhan.banking_system.model.KycStatus;
 import com.santhan.banking_system.model.AccountType;
 import com.santhan.banking_system.model.FraudAlert;
 import com.santhan.banking_system.model.FraudAlert.AlertStatus;
+import com.santhan.banking_system.model.Transaction; // Import Transaction model
+
+import com.santhan.banking_system.service.UserService;
+import com.santhan.banking_system.service.AccountService;
+import com.santhan.banking_system.service.TransactionService; // Import TransactionService
+import com.santhan.banking_system.service.FraudAlertService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -75,7 +78,6 @@ public class AdminController {
                 }
             }
         });
-
 
         model.addAttribute("users", allUsers);
         model.addAttribute("accounts", allAccounts);
@@ -174,6 +176,44 @@ public class AdminController {
         return "redirect:/admin/dashboard";
     }
 
+    // --- TRANSACTION MANAGEMENT (NEW/UPDATED SECTION) ---
+
+    @GetMapping("/transactions")
+    @Transactional(readOnly = true) // Use readOnly for GET requests to optimize
+    public String manageTransactions(Model model) {
+        List<Transaction> transactions = transactionService.getAllTransactions();
+        // Eagerly fetch associated accounts and users for display in the view
+        transactions.forEach(transaction -> {
+            if (transaction.getSourceAccount() != null) {
+                transaction.getSourceAccount().getAccountNumber();
+                if (transaction.getSourceAccount().getUser() != null) {
+                    transaction.getSourceAccount().getUser().getUsername();
+                }
+            }
+            if (transaction.getDestinationAccount() != null) {
+                transaction.getDestinationAccount().getAccountNumber();
+                if (transaction.getDestinationAccount().getUser() != null) {
+                    transaction.getDestinationAccount().getUser().getUsername();
+                }
+            }
+        });
+        model.addAttribute("transactions", transactions);
+        return "admin/transactions"; // Ensure you have a Thymeleaf template named transactions.html
+    }
+
+    // NEW: Endpoint to trigger transaction reversal
+    @PostMapping("/transactions/reverse/{transactionId}")
+    public String reverseTransaction(@PathVariable Long transactionId, RedirectAttributes redirectAttributes) {
+        try {
+            transactionService.reverseTransaction(transactionId);
+            redirectAttributes.addFlashAttribute("success", "Transaction " + transactionId + " reversed successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error reversing transaction " + transactionId + ": " + e.getMessage());
+            e.printStackTrace(); // Log the error for debugging
+        }
+        return "redirect:/admin/transactions"; // Redirect back to the transaction list
+    }
+
     // --- LEDGER INTEGRITY VERIFICATION ---
     @PostMapping("/verify-ledger")
     public String verifyLedger(RedirectAttributes redirectAttributes) {
@@ -194,20 +234,15 @@ public class AdminController {
 
     // --- KYC MANAGEMENT ---
     @GetMapping("/kyc-pending")
-    // @PreAuthorize is already at the class level, but can be added here for specific override if needed
     public String listPendingKycSubmissions(Model model) {
         List<User> pendingKycUsers = userService.getUsersByKycStatus(KycStatus.PENDING);
-        // You might also want to include REQUIRES_RESUBMISSION here
-        // List<User> resubmissionKycUsers = userService.getUsersByKycStatus(KycStatus.REQUIRES_RESUBMISSION);
-        // pendingKycUsers.addAll(resubmissionKycUsers); // If you want to combine them
-
         model.addAttribute("pendingKycUsers", pendingKycUsers);
         model.addAttribute("kycStatusMessage", "Users with Pending KYC Submissions");
-        return "admin/admin-kyc-pending-list"; // Corrected path for Thymeleaf template
+        return "admin/admin-kyc-pending-list";
     }
 
     @GetMapping("/kyc-review/{id}")
-    @Transactional // To ensure all lazy-loaded user details (like firstName, address etc.) are available
+    @Transactional
     public String showKycReviewDetails(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         try {
             User user = userService.getUserById(id);
@@ -215,8 +250,6 @@ public class AdminController {
                 redirectAttributes.addFlashAttribute("error", "User not found for KYC review.");
                 return "redirect:/admin/kyc-pending";
             }
-            // Ensure lazy-loaded fields are accessible if needed for display
-            // These lines trigger loading of the data within the transaction
             user.getFirstName();
             user.getLastName();
             user.getAddress();
@@ -226,19 +259,18 @@ public class AdminController {
             user.getKycSubmissionDate();
 
             model.addAttribute("userToReview", user);
-            model.addAttribute("allKycStatuses", KycStatus.values()); // For dropdown if you add actions later
-            return "admin/kyc-review-details"; // This will be your new Thymeleaf template
+            model.addAttribute("allKycStatuses", KycStatus.values());
+            return "admin/kyc-review-details";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Error fetching KYC details: " + e.getMessage());
             return "redirect:/admin/kyc-pending";
         }
     }
 
-
-    // --- FRAUD ALERT MANAGEMENT (Dedicated Page) ---
+    // --- FRAUD ALERT MANAGEMENT ---
     @GetMapping("/fraud-alerts")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')") // Admins and Employees can view all alerts
-    @Transactional // Ensure lazy loading works for transaction and its associated accounts/users
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
+    @Transactional
     public String manageFraudAlerts(@RequestParam(value = "status", required = false) String statusFilter, Model model) {
         List<FraudAlert> alerts;
         AlertStatus selectedStatus = null;
@@ -249,13 +281,12 @@ public class AdminController {
                 alerts = fraudAlertService.getAlertsByStatus(selectedStatus);
             } catch (IllegalArgumentException e) {
                 model.addAttribute("error", "Invalid alert status provided: " + statusFilter);
-                alerts = fraudAlertService.getAllAlerts(); // Fallback to all alerts
+                alerts = fraudAlertService.getAllAlerts();
             }
         } else {
-            alerts = fraudAlertService.getAllAlerts(); // Default to all alerts if no filter
+            alerts = fraudAlertService.getAllAlerts();
         }
 
-        // Manually initialize lazy-loaded data for display in Thymeleaf
         alerts.forEach(alert -> {
             if (alert.getTransaction() != null) {
                 if (alert.getTransaction().getSourceAccount() != null) {
@@ -274,14 +305,13 @@ public class AdminController {
         });
 
         model.addAttribute("alerts", alerts);
-        model.addAttribute("allAlertStatuses", AlertStatus.values()); // For the filter dropdown
-        model.addAttribute("selectedStatus", selectedStatus); // To pre-select in the dropdown
+        model.addAttribute("allAlertStatuses", AlertStatus.values());
+        model.addAttribute("selectedStatus", selectedStatus);
 
-        return "admin/fraud-alerts"; // New Thymeleaf template
+        return "admin/fraud-alerts";
     }
 
-
-    // --- FRAUD ALERT ACTIONS (from dashboard or dedicated page) ---
+    // --- FRAUD ALERT ACTIONS ---
     @PostMapping("/alerts/update-status/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public String updateAlertStatus(@PathVariable Long id, @RequestParam("status") String status, RedirectAttributes redirectAttributes) {
@@ -294,7 +324,6 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Error updating alert status: " + e.getMessage());
         }
-        // Redirect back to the fraud alerts page, preserving filter if possible
         return "redirect:/admin/fraud-alerts";
     }
 

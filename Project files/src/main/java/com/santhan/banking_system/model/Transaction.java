@@ -4,10 +4,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
-// Removed @AllArgsConstructor for clarity as we use custom constructor and handle hash generation in service
 import java.math.BigDecimal;
-import java.time.Instant; // NEW: Import Instant
-import java.time.temporal.ChronoUnit; // Import ChronoUnit for truncation
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "transactions")
@@ -30,10 +29,8 @@ public class Transaction {
     @Column(length = 255)
     private String description;
 
-    // CHANGED: From LocalDateTime to Instant
-    // @Column(nullable = false, updatable = false) // Removed updatable=false as Instant can be set initially
-    @Column(nullable = false) // Ensures column is not null
-    private Instant transactionDate; // Use Instant for timezone-independent timestamp
+    @Column(nullable = false)
+    private Instant transactionDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_account_id")
@@ -49,6 +46,16 @@ public class Transaction {
     @Column(length = 64)
     private String previousTransactionHash;
 
+    @Column(nullable = false)
+    private String status = "COMPLETED"; // Default status for new transactions
+
+    // NEW: Fields for transaction reversal
+    @Column(nullable = false)
+    private boolean reversed = false; // Indicates if this specific transaction has been reversed
+
+    @Column(name = "original_transaction_id")
+    private Long originalTransactionId; // Links reversal transaction to its original, or null if it's an original
+
     // Custom constructor
     public Transaction(TransactionType transactionType, BigDecimal amount, String description,
                        Account sourceAccount, Account destinationAccount) {
@@ -57,18 +64,21 @@ public class Transaction {
         this.description = description;
         this.sourceAccount = sourceAccount;
         this.destinationAccount = destinationAccount;
-        // Set Instant.now() initially. @PrePersist will handle truncation for DB consistency.
         this.transactionDate = Instant.now();
+        this.status = "COMPLETED"; // New transactions are completed by default
+        this.reversed = false; // Not reversed by default
+        this.originalTransactionId = null; // No original transaction by default
     }
 
-    // NEW/MODIFIED: Lifecycle callback to truncate Instant to seconds before persisting
     @PrePersist
     protected void onCreate() {
         if (this.transactionDate == null) {
             this.transactionDate = Instant.now();
         }
-        // CRITICAL FIX: Truncate to seconds (or milliseconds if your DB supports it consistently)
-        // Instant is inherently UTC. Truncating ensures precision consistency with DB storage.
         this.transactionDate = this.transactionDate.truncatedTo(ChronoUnit.SECONDS);
+        if (this.status == null || this.status.isEmpty()) {
+            this.status = "COMPLETED"; // Ensure status is set on persist if not already
+        }
+        // `reversed` and `originalTransactionId` are handled by constructor or setters
     }
 }

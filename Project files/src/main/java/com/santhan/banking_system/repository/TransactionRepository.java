@@ -3,10 +3,10 @@ package com.santhan.banking_system.repository;
 import com.santhan.banking_system.model.Transaction;
 import com.santhan.banking_system.model.Account;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.time.Instant; // NEW: Import Instant
+import java.time.Instant;
 import java.util.List;
-import org.springframework.data.jpa.repository.Query; // NEW: Import Query
-import java.util.Optional; // NEW: Import Optional
+import org.springframework.data.jpa.repository.Query;
+import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     // Method to find all transactions for a given account (either as source or destination)
@@ -28,4 +28,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findBySourceAccountIdAndTransactionDateAfterOrDestinationAccountIdAndTransactionDateAfter(
             Long sourceAccountId, Instant sourceTransactionDateAfter,
             Long destinationAccountId, Instant destinationTransactionDateAfter);
+
+    // NEW: Methods to find transactions by status for ledger verification/fraud (if needed for specific filtering)
+    List<Transaction> findBySourceAccountAndStatus(Account sourceAccount, String status);
+    List<Transaction> findByDestinationAccountAndStatus(Account destinationAccount, String status);
 }
