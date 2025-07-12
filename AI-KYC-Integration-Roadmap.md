@@ -116,5 +116,3 @@ Deliver a robust, trustworthy, and auditable AI-powered KYC review process that 
 - **Continuous Learning:** Models are regularly retrained and tested against new fraud tactics.
 
 ---
-
-*This roadmap enables your hybrid bank to not only automate KYC at scale, but to do so in a way that's trusted, auditable, compliant, and future-proof.*
