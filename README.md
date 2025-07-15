@@ -2,7 +2,7 @@
 [![Maven Package](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
 
-## Recent update : Published a new release with KYC Submission and Status dashboard added. (v3.2)
+## Recent update : Published a new release with controlled reversability and transaction management updated in the admin dashboard. (v3.3)
 
 ---
 
