@@ -62,12 +62,20 @@ public class LoginController {
             redirectAttributes.addFlashAttribute("successMessage",
                     "Registration successful! An email verification OTP has been sent to " + registeredUser.getEmail() + ". Please verify your email to activate your account.");
             return "redirect:/verify-email?username=" + registeredUser.getUsername();
-        } catch (Exception e) {
-            System.err.println("ERROR: User registration failed: " + e.getMessage());
+        } catch (IllegalArgumentException e) { // For username/email/mobile already exists
+            System.err.println("ERROR: User creation failed: " + e.getMessage());
             e.printStackTrace();
-            redirectAttributes.addFlashAttribute("errorMessage", "Registration failed: " + e.getMessage() + ". Please try again.");
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
             redirectAttributes.addFlashAttribute("user", user);
             return "redirect:/register";
+        } catch (RuntimeException e) { // For OTP generation/email sending failure
+            System.err.println("ERROR: Registration completed, but OTP generation/email sending failed: " + e.getMessage());
+            e.printStackTrace();
+            // IMPORTANT: User is created, so redirect to verification page with instructions
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Registration completed, but failed to send verification email. Please click 'Resend OTP' on the next page to receive your OTP.");
+            redirectAttributes.addFlashAttribute("user", user); // Keep user data for potential resend
+            return "redirect:/verify-email?username=" + user.getUsername();
         }
     }
 
@@ -150,4 +158,12 @@ public class LoginController {
         }
         return "redirect:/verify-email?username=" + username;
     }
+
+    // Removed password reset related methods for now
+    // @GetMapping("/forgot-password")
+    // @PostMapping("/forgot-password")
+    // @GetMapping("/verify-password-reset")
+    // @PostMapping("/verify-password-reset")
+
 }
+    

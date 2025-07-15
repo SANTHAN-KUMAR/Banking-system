@@ -4,7 +4,19 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "otps")
+@Table(name = "otps", uniqueConstraints = {
+        // Enforce that for a given user and purpose, there can be at most one OTP that is NOT used.
+        // This requires a functional index or specific handling in older MySQL versions.
+        // For simplicity with Spring Data JPA and common MySQL setups, we'll rely on the application
+        // logic to invalidate old OTPs, but this constraint is ideal if your DB supports it easily.
+        // A more direct unique constraint for "active" OTPs would be on (user_id, purpose)
+        // if you always invalidate the old one before inserting a new one.
+        // Let's try a simpler approach first, which is to ensure the update/insert sequence is robust.
+        // If you want to enforce "only one active OTP per user/purpose" at DB level, you'd need:
+        // @UniqueConstraint(columnNames = {"user_id", "purpose"}, name = "UK_user_purpose_active_otp")
+        // AND modify your logic to always update the existing one or delete it before inserting.
+        // For now, let's remove this specific unique constraint and fix the logic.
+})
 public class Otp {
 
     @Id
@@ -12,7 +24,7 @@ public class Otp {
     private Long id;
 
     @Column(nullable = false)
-    private String otpCode; // Renamed 'code' to 'otpCode' for clarity
+    private String otpCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -29,7 +41,7 @@ public class Otp {
     private OtpPurpose purpose;
 
     @Column(nullable = false)
-    private boolean used = false; // NEW FIELD: To mark if OTP has been used
+    private boolean used = false;
 
     public enum OtpPurpose {
         EMAIL_VERIFICATION,
@@ -60,11 +72,11 @@ public class Otp {
         this.id = id;
     }
 
-    public String getOtpCode() { // Renamed getter
+    public String getOtpCode() {
         return otpCode;
     }
 
-    public void setOtpCode(String otpCode) { // Renamed setter
+    public void setOtpCode(String otpCode) {
         this.otpCode = otpCode;
     }
 
@@ -100,16 +112,16 @@ public class Otp {
         this.purpose = purpose;
     }
 
-    public boolean isUsed() { // NEW Getter
+    public boolean isUsed() {
         return used;
     }
 
-    public void setUsed(boolean used) { // NEW Setter
+    public void setUsed(boolean used) {
         this.used = used;
     }
 
-    // Helper method to check if OTP is expired
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
     }
 }
+    
