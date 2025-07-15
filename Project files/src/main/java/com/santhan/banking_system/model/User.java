@@ -1,18 +1,21 @@
 package com.santhan.banking_system.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime; // Use java.time.LocalDateTime for modern Spring/JPA
-import java.time.LocalDate; // NEW: Import LocalDate for dateOfBirth
+import java.time.LocalDateTime;
+import java.time.LocalDate; // Corrected: Use LocalDate for dateOfBirth
 
-// Spring Security imports for UserDetails
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+// Import top-level enums
+import com.santhan.banking_system.model.UserRole;
+import com.santhan.banking_system.model.KycStatus;
+
 @Entity
-@Table(name = "users") // Ensure table name is explicitly "users"
+@Table(name = "users")
 public class User implements UserDetails {
 
     @Id
@@ -25,12 +28,16 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false, length = 60) // BCrypt passwords are 60 chars
+    @Column(nullable = false, length = 60)
     private String password;
 
-    @Enumerated(EnumType.STRING) // Store enum as String in DB ('ROLE_CUSTOMER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN')
+    // NEW FIELD for Transaction PIN (will store hashed value)
+    @Column(name = "transaction_pin", length = 60) // BCrypt hash length
+    private String transactionPin;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserRole role;
+    private UserRole role; // Corrected: Use top-level UserRole enum
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -38,36 +45,50 @@ public class User implements UserDetails {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    // --- NEW KYC Fields ---
-    @Enumerated(EnumType.STRING) // Store enum as String (e.g., "PENDING", "VERIFIED")
+    @Column(name = "last_profile_update")
+    private LocalDateTime lastProfileUpdate;
+
+    // NEW FIELDS for 2FA/Verification
     @Column(nullable = false)
-    private KycStatus kycStatus = KycStatus.PENDING; // Default to PENDING for new users
+    private boolean emailVerified = false; // Default to false
+
+    @Column(nullable = false)
+    private boolean mobileVerified = false; // Default to false
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private KycStatus kycStatus = KycStatus.PENDING; // Corrected: Use top-level KycStatus
 
     private String firstName;
     private String lastName;
-    private LocalDate dateOfBirth; // Date of birth (e.g., 1990-01-15)
-    @Column(columnDefinition = "TEXT") // Use TEXT for potentially longer addresses
+    private LocalDate dateOfBirth; // Corrected: Back to LocalDate
+    @Column(columnDefinition = "TEXT")
     private String address;
-    @Column(unique = true) // National ID should ideally be unique
-    private String nationalIdNumber; // e.g., Aadhaar, SSN, Passport Number
-    private String documentType;     // e.g., "Aadhaar Card", "Passport", "Driver's License"
-    private LocalDateTime kycSubmissionDate; // When KYC data was submitted
-    private LocalDateTime kycVerifiedDate;   // When KYC was verified/rejected
-    // --- End NEW KYC Fields ---
+    @Column(unique = true)
+    private String nationalIdNumber;
+    private String documentType;
+    private LocalDateTime kycSubmissionDate;
+    private LocalDateTime kycVerifiedDate;
 
-    // --- Constructors ---
+    // NEW FIELD: Mobile Number
+    @Column(nullable = true, unique = true)
+    private String mobileNumber;
+
+
     public User() {
-        // Default constructor required by JPA
-        this.kycStatus = KycStatus.PENDING; // Ensure default KYC status is set
+        this.kycStatus = KycStatus.PENDING;
+        this.emailVerified = false;
+        this.mobileVerified = false;
     }
 
     public User(String username, String email, String password) {
         this.username = username;
         this.email = email;
         this.password = password;
-        this.role = UserRole.ROLE_CUSTOMER; // Set default role for new users
-        this.kycStatus = KycStatus.PENDING; // Set default KYC status for new users
-        // createdAt and updatedAt will be set by @PrePersist
+        this.role = UserRole.ROLE_CUSTOMER;
+        this.kycStatus = KycStatus.PENDING;
+        this.emailVerified = false;
+        this.mobileVerified = false;
     }
 
     // --- Getters and Setters ---
@@ -79,7 +100,7 @@ public class User implements UserDetails {
         this.id = id;
     }
 
-    @Override // From UserDetails
+    @Override
     public String getUsername() {
         return username;
     }
@@ -96,13 +117,21 @@ public class User implements UserDetails {
         this.email = email;
     }
 
-    @Override // From UserDetails
+    @Override
     public String getPassword() {
         return password;
     }
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getTransactionPin() {
+        return transactionPin;
+    }
+
+    public void setTransactionPin(String transactionPin) {
+        this.transactionPin = transactionPin;
     }
 
     public UserRole getRole() {
@@ -129,7 +158,30 @@ public class User implements UserDetails {
         this.updatedAt = updatedAt;
     }
 
-    // --- NEW KYC Getters and Setters ---
+    public LocalDateTime getLastProfileUpdate() {
+        return lastProfileUpdate;
+    }
+
+    public void setLastProfileUpdate(LocalDateTime lastProfileUpdate) {
+        this.lastProfileUpdate = lastProfileUpdate;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
+    public boolean isMobileVerified() {
+        return mobileVerified;
+    }
+
+    public void setMobileVerified(boolean mobileVerified) {
+        this.mobileVerified = mobileVerified;
+    }
+
     public KycStatus getKycStatus() {
         return kycStatus;
     }
@@ -154,11 +206,11 @@ public class User implements UserDetails {
         this.lastName = lastName;
     }
 
-    public LocalDate getDateOfBirth() {
+    public LocalDate getDateOfBirth() { // Corrected: Return LocalDate
         return dateOfBirth;
     }
 
-    public void setDateOfBirth(LocalDate dateOfBirth) {
+    public void setDateOfBirth(LocalDate dateOfBirth) { // Corrected: Accept LocalDate
         this.dateOfBirth = dateOfBirth;
     }
 
@@ -201,21 +253,26 @@ public class User implements UserDetails {
     public void setKycVerifiedDate(LocalDateTime kycVerifiedDate) {
         this.kycVerifiedDate = kycVerifiedDate;
     }
-    // --- End NEW KYC Getters and Setters ---
 
+    public String getMobileNumber() {
+        return mobileNumber;
+    }
+
+    public void setMobileNumber(String mobileNumber) {
+        this.mobileNumber = mobileNumber;
+    }
 
     // --- Lifecycle Callbacks for Auditing ---
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        if (this.role == null) { // Ensure role is set if not by constructor
+        if (this.role == null) {
             this.role = UserRole.ROLE_CUSTOMER;
         }
-        if (this.kycStatus == null) { // Ensure KYC status is set if not by constructor
+        if (this.kycStatus == null) {
             this.kycStatus = KycStatus.PENDING;
         }
-        this.kycSubmissionDate = LocalDateTime.now(); // Set submission date on first persist
     }
 
     @PreUpdate
@@ -240,7 +297,10 @@ public class User implements UserDetails {
     public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() {
+        // User is enabled only if their email is verified
+        return this.emailVerified;
+    }
     // ---------------------------------------------
 
     // Optional: toString for better debugging
@@ -251,8 +311,9 @@ public class User implements UserDetails {
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
                 ", password='[PROTECTED]'" +
+                ", transactionPin='[PROTECTED]'" +
                 ", role=" + role +
-                ", kycStatus=" + kycStatus + // Include kycStatus in toString
+                ", kycStatus=" + kycStatus +
                 ", firstName='" + firstName + '\'' +
                 ", lastName='" + lastName + '\'' +
                 ", dateOfBirth=" + dateOfBirth +
@@ -263,6 +324,10 @@ public class User implements UserDetails {
                 ", kycVerifiedDate=" + kycVerifiedDate +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
+                ", lastProfileUpdate=" + lastProfileUpdate +
+                ", mobileNumber='" + mobileNumber + '\'' +
+                ", emailVerified=" + emailVerified +
+                ", mobileVerified=" + mobileVerified +
                 '}';
     }
 }

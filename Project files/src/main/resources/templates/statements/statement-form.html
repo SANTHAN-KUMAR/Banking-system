@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Account Statement</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body { padding-top: 20px; }
+        .container { max-width: 600px; }
+        .form-group label { font-weight: bold; }
+        .button-group .btn { margin-right: 10px; } /* Space between buttons */
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2 class="mb-4">Download Statement for Account: <span th:text="${account.accountNumber}"></span></h2>
+
+    <div th:if="${param.success}" class="alert alert-success" role="alert">
+        <span th:text="${param.success}"></span>
+    </div>
+    <div th:if="${param.error}" class="alert alert-danger" role="alert">
+        <span th:text="${param.error}"></span>
+    </div>
+    <div th:if="${error}" class="alert alert-danger" role="alert">
+        <span th:text="${error}"></span>
+    </div>
+
+    <form th:action="@{/statements/account/{accountId}/download(accountId=${accountId})}" method="post">
+        <div class="form-group">
+            <label for="startDate">Start Date:</label>
+            <input type="date" id="startDate" name="startDate" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="endDate">End Date:</label>
+            <input type="date" id="endDate" name="endDate" class="form-control" required>
+        </div>
+        <div class="button-group mt-3">
+            <button type="submit" name="format" value="csv" class="btn btn-primary">Download CSV Statement</button>
+            <button type="submit" name="format" value="pdf" class="btn btn-info">Download PDF Statement</button>
+        </div>
+        <a th:href="@{/user/dashboard}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

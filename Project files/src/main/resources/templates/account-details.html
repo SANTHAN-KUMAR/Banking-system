@@ -101,6 +101,9 @@
     .button.transactions-btn { background-color: #6f42c1; } /* Purple for View Transactions */
     .button.transactions-btn:hover { background-color: #5a32a0; }
 
+    .button.statement-btn { background-color: #17a2b8; } /* Teal/Cyan for Statement */
+    .button.statement-btn:hover { background-color: #138496; }
+
     .button.back-to-list-btn { background-color: #6c757d; } /* Grey for Back to List */
     .button.back-to-list-btn:hover { background-color: #5a6268; }
 
@@ -160,6 +163,9 @@
   <a th:href="@{'/accounts/' + ${account.id} + '/withdraw'}" class="button withdraw-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">Withdraw</a>
   <a th:href="@{'/accounts/' + ${account.id} + '/transfer'}" class="button transfer-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">Transfer</a>
   <a th:href="@{'/accounts/' + ${account.id} + '/transactions'}" class="button transactions-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">View Transactions</a>
+
+  <!-- NEW: Button for Account Statement Download -->
+  <a th:href="@{/statements/account/{accountId}(accountId=${account.id})}" class="button statement-btn" sec:authorize="hasAnyRole('CUSTOMER', 'EMPLOYEE', 'ADMIN')">Download Statement</a>
 
   <a th:href="@{/accounts}" class="button back-to-list-btn">Back to Account List</a>
 </div>

@@ -2,78 +2,53 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Deposit Funds</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
-    h1 { color: #333; }
-    form {
-        background-color: #fff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        max-width: 400px;
-        margin: 20px auto;
-    }
-    div { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-    input[type="number"],
-    input[type="text"] {
-        width: calc(100% - 22px);
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 16px;
-    }
-    .button {
-        padding: 10px 20px;
-        background-color: #28a745; /* Green for deposit */
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 16px;
-    }
-    .button:hover { background-color: #218838; }
-    .back-button {
-        background-color: #6c757d;
-        margin-left: 10px;
-    }
-    .back-button:hover { background-color: #5a6268; }
-    .error-message {
-        color: red;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
-    .success-message {
-        color: green;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
+    body { padding-top: 20px; }
+    .container { max-width: 600px; }
+    .form-group label { font-weight: bold; }
+    .alert-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+    .alert-danger { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
   </style>
 </head>
 <body>
-<h1>Deposit Funds into Account: <span th:text="${account.accountNumber}"></span></h1>
+<div class="container">
+  <h2 class="mb-4">Deposit Funds to Account: <span th:text="${account.accountNumber}"></span></h2>
 
-<div th:if="${error}" class="error-message">
-  <p th:text="${error}"></p>
-</div>
-<div th:if="${success}" class="success-message">
-  <p th:text="${success}"></p>
+  <!-- Flash messages -->
+  <div th:if="${success}" class="alert alert-success" role="alert">
+    <p th:text="${success}"></p>
+  </div>
+  <div th:if="${error}" class="alert alert-danger" role="alert">
+    <p th:text="${error}"></p>
+  </div>
+
+  <form th:action="@{/accounts/{accountId}/deposit(accountId=${account.id})}" method="post">
+    <div class="form-group">
+      <label for="amount">Amount:</label>
+      <input type="number" id="amount" name="amount" class="form-control" step="0.01" min="0.01" required>
+    </div>
+    <div class="form-group">
+      <label for="description">Description (Optional):</label>
+      <input type="text" id="description" name="description" class="form-control">
+    </div>
+    <!-- NEW: Transaction PIN Field -->
+    <div class="form-group">
+      <label for="transactionPin">Transaction PIN:</label>
+      <input type="password" id="transactionPin" name="transactionPin" class="form-control"
+             pattern="\d{4,6}" title="PIN must be 4 to 6 numeric digits"
+             required autocomplete="off">
+      <small class="form-text text-muted">Enter your 4-6 digit transaction PIN to confirm.</small>
+    </div>
+    <button type="submit" class="btn btn-primary">Deposit</button>
+    <a th:href="@{/accounts/{accountId}(accountId=${account.id})}" class="btn btn-secondary ml-2">Cancel</a>
+  </form>
 </div>
 
-<form th:action="@{'/accounts/' + ${account.id} + '/deposit'}" method="post">
-  <div>
-    <label for="amount">Amount:</label>
-    <input type="number" id="amount" name="amount" th:value="${amount}" step="0.01" min="0.01" required />
-  </div>
-  <div>
-    <label for="description">Description (optional):</label>
-    <input type="text" id="description" name="description" th:value="${description}" maxlength="255" />
-  </div>
-  <div>
-    <button type="submit" class="button">Deposit</button>
-    <a th:href="@{'/accounts/details/' + ${account.id}}" class="button back-button">Back to Account Details</a>
-  </div>
-</form>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
