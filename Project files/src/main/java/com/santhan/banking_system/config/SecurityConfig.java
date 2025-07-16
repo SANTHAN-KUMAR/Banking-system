@@ -1,81 +1,74 @@
 package com.santhan.banking_system.config;
 
-import com.santhan.banking_system.service.UserService;
+import com.santhan.banking_system.service.UserService; // Keep import for clarity if still using any User-related types
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.userdetails.UserDetailsService; // Import UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    private final UserService userService;
-
-    public SecurityConfig(UserService userService) {
-        this.userService = userService;
-    }
+    // IMPORTANT: Removed the @Autowired constructor for UserService.
+    // Spring will find the UserDetailsService bean automatically for authenticationManager.
 
     @Bean
-    public static PasswordEncoder passwordEncoder() {
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider auth = new DaoAuthenticationProvider();
-        auth.setUserDetailsService(userService);
-        auth.setPasswordEncoder(passwordEncoder());
-        return auth;
+    public AuthenticationManager authenticationManager(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+        // Spring will auto-wire the 'userDetailsService' parameter with your UserService bean,
+        // as UserService implements UserDetailsService. This breaks the direct cycle.
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setUserDetailsService(userDetailsService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder);
+        return new ProviderManager(authenticationProvider);
+    }
+
+    @Bean
+    public AuthenticationSuccessHandler customAuthenticationSuccessHandler() {
+        SimpleUrlAuthenticationSuccessHandler handler = new SimpleUrlAuthenticationSuccessHandler();
+        handler.setDefaultTargetUrl("/dashboard"); // Redirect to dashboard after successful login
+        handler.setAlwaysUseDefaultTargetUrl(false); // Allow redirects to original requested URL
+        return handler;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Disable CSRF for simplicity in development, re-enable for production
+                .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for simplicity in development, consider enabling for production
                 .authorizeHttpRequests(authorize -> authorize
-                        // Publicly accessible paths
-                        .requestMatchers("/register", "/login", "/").permitAll()
-
-                        // Admin specific paths
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                        // Employee specific paths
-                        .requestMatchers("/employee/**").hasAnyRole("ADMIN", "EMPLOYEE")
-
-                        // User/Customer specific paths handled by DashboardController at root level
-                        .requestMatchers("/dashboard", "/kyc", "/kyc/submit").hasAnyRole("ADMIN", "EMPLOYEE", "CUSTOMER")
-
-                        // General authenticated paths that might not be under /user (adjust as needed)
-                        .requestMatchers("/accounts/**").hasAnyRole("ADMIN", "EMPLOYEE", "CUSTOMER")
-                        .requestMatchers("/transactions/**").hasAnyRole("ADMIN", "EMPLOYEE", "CUSTOMER")
-
-
+                        // Allow public access to registration, login, and verification pages
+                        .requestMatchers("/register", "/login", "/verify-email**", "/resend-email-otp**", "/css/**", "/js/**", "/images/**").permitAll()
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/dashboard", true) // Reverted to /dashboard
-                        .failureUrl("/login?error=true")
+                        .successHandler(customAuthenticationSuccessHandler()) // Use custom success handler
+                        .failureUrl("/login?error=true") // Redirect to login page with error on failure
                         .permitAll()
                 )
                 .logout(logout -> logout
-                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-                        .logoutSuccessUrl("/login?logout")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout") // Redirect to login page with logout success message
                         .permitAll()
                 );
-
         return http.build();
     }
 }

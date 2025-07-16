@@ -1,16 +1,21 @@
 package com.santhan.banking_system.service;
 
 import com.santhan.banking_system.model.FraudAlert;
+import com.santhan.banking_system.model.FraudAlert.AlertType;
 import com.santhan.banking_system.model.FraudAlert.AlertStatus;
+import com.santhan.banking_system.model.Account;
 import com.santhan.banking_system.model.Transaction;
+import com.santhan.banking_system.model.TransactionType; // Import TransactionType
 import com.santhan.banking_system.repository.FraudAlertRepository;
-import com.santhan.banking_system.repository.TransactionRepository; // NEW: Import TransactionRepository
+import com.santhan.banking_system.repository.TransactionRepository;
+import com.santhan.banking_system.repository.AccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
-import java.time.Instant; // Ensure Instant is imported
-import java.time.temporal.ChronoUnit; // Ensure ChronoUnit is imported
+import java.time.Instant;
+import java.time.ZoneOffset; // Import ZoneOffset for conversion
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,136 +23,124 @@ import java.util.Optional;
 public class FraudAlertService {
 
     private final FraudAlertRepository fraudAlertRepository;
-    private final TransactionRepository transactionRepository; // NEW: Inject TransactionRepository
+    private final TransactionRepository transactionRepository;
+    private final AccountRepository accountRepository;
 
-    // Define thresholds for fraud rules (can be moved to application.properties later)
-    private static final BigDecimal LARGE_TRANSACTION_THRESHOLD = new BigDecimal("5000.00");
-    // NEW: Thresholds for frequent transactions
-    private static final int FREQUENT_TRANSACTIONS_COUNT = 5; // e.g., 5 transactions
-    private static final long FREQUENT_TRANSACTIONS_PERIOD_MINUTES = 60; // within 60 minutes
+    // Define thresholds for fraud rules
+    private static final BigDecimal LARGE_TRANSACTION_THRESHOLD = new BigDecimal("10000.00");
+    private static final int MULTIPLE_LARGE_TRANSACTIONS_COUNT = 3;
+    private static final long MULTIPLE_LARGE_TRANSACTIONS_PERIOD_MINUTES = 10;
+    private static final long NEW_ACCOUNT_THRESHOLD_HOURS = 24;
 
     @Autowired
     public FraudAlertService(FraudAlertRepository fraudAlertRepository,
-                             TransactionRepository transactionRepository) { // NEW: Inject TransactionRepository
+                             TransactionRepository transactionRepository,
+                             AccountRepository accountRepository) {
         this.fraudAlertRepository = fraudAlertRepository;
-        this.transactionRepository = transactionRepository; // Initialize TransactionRepository
+        this.transactionRepository = transactionRepository;
+        this.accountRepository = accountRepository;
     }
 
-    /**
-     * Creates a new fraud alert in the database.
-     * This method is called internally when suspicious activity is detected.
-     *
-     * @param transaction The transaction that triggered the alert.
-     * @param alertType The type of alert (e.g., "LARGE_TRANSACTION").
-     * @param description A detailed description of the alert.
-     * @return The saved FraudAlert object.
-     */
     @Transactional
-    public FraudAlert createAlert(Transaction transaction, String alertType, String description) {
-        // First, check if an alert already exists for this exact transaction to avoid duplicates
-        // or if an alert of this type already exists for this transaction (e.g. large transaction, but no other type)
-        Optional<FraudAlert> existingAlert = fraudAlertRepository.findByTransaction_Id(transaction.getId());
+    public FraudAlert createAlert(Transaction transaction, AlertType alertType, String description, AlertStatus status) {
+        // Prevent duplicate alerts for the exact same transaction and alert type
+        Optional<FraudAlert> existingAlert = fraudAlertRepository.findByTransactionAndAlertType(transaction, alertType);
         if (existingAlert.isPresent()) {
-            // Optional: You might want to update an existing alert here if the alertType is new
-            // For now, we'll just skip if any alert for this transaction exists.
-            System.out.println("DEBUG: Alert already exists for transaction ID " + transaction.getId() + ". Skipping new alert creation.");
-            return existingAlert.get(); // Return existing alert
+            System.out.println("DEBUG: Alert of type " + alertType + " already exists for transaction ID " + transaction.getId() + ". Skipping new alert creation.");
+            return existingAlert.get();
         }
 
         FraudAlert alert = new FraudAlert();
         alert.setTransaction(transaction);
         alert.setAlertType(alertType);
         alert.setDescription(description);
-        alert.setStatus(AlertStatus.PENDING); // New alerts are always pending review
+        alert.setStatus(status);
+        alert.setCreatedAt(Instant.now());
+        alert.setLastUpdatedAt(Instant.now());
 
         System.out.println("DEBUG: Creating new fraud alert for Transaction ID: " + transaction.getId() +
-                ", Type: " + alertType + ", Description: " + description);
+                ", Type: " + alertType.name() + ", Description: " + description);
         return fraudAlertRepository.save(alert);
     }
 
-    /**
-     * Evaluates a transaction for potential fraud.
-     * This method will contain the fraud detection rules.
-     * It will be called by the TransactionService after a transaction is successfully saved.
-     *
-     * @param transaction The transaction to evaluate.
-     */
     @Transactional
     public void evaluateTransactionForFraud(Transaction transaction) {
-        // Rule 1: Large Transaction Detection
+        // Rule 1: Large Single Transaction Detection
         if (transaction.getAmount().compareTo(LARGE_TRANSACTION_THRESHOLD) >= 0) {
             String description = "Transaction amount (" + transaction.getAmount() + ") exceeds large transaction threshold (" + LARGE_TRANSACTION_THRESHOLD + ").";
-            createAlert(transaction, "LARGE_TRANSACTION", description);
+            createAlert(transaction, AlertType.LARGE_TRANSACTION, description, AlertStatus.PENDING);
             System.out.println("INFO: Detected potential fraud: LARGE_TRANSACTION for Txn ID " + transaction.getId());
         }
 
-        // NEW Rule 2: Frequent Transactions Detection
-        // Applies to source account for withdrawals/transfers, or destination account for deposits
-        Long relevantAccountId = null;
+        // Rule 2: Multiple Large Transactions in Short Period
+        Account relevantAccount = null;
         if (transaction.getSourceAccount() != null) {
-            relevantAccountId = transaction.getSourceAccount().getId();
+            relevantAccount = transaction.getSourceAccount();
         } else if (transaction.getDestinationAccount() != null) {
-            relevantAccountId = transaction.getDestinationAccount().getId();
+            relevantAccount = transaction.getDestinationAccount();
         }
 
-        if (relevantAccountId != null) {
-            Instant timeWindowStart = transaction.getTransactionDate().minus(FREQUENT_TRANSACTIONS_PERIOD_MINUTES, ChronoUnit.MINUTES);
-            List<Transaction> recentTransactions = transactionRepository.findBySourceAccountIdAndTransactionDateAfterOrDestinationAccountIdAndTransactionDateAfter(
-                    relevantAccountId, timeWindowStart, relevantAccountId, timeWindowStart
+        if (relevantAccount != null) {
+            Instant timeWindowStart = Instant.now().minus(MULTIPLE_LARGE_TRANSACTIONS_PERIOD_MINUTES, ChronoUnit.MINUTES);
+
+            // Fetch transactions related to this account within the time window
+            List<Transaction> recentTransactions = transactionRepository.findBySourceAccountAndTransactionDateAfterOrDestinationAccountAndTransactionDateAfter(
+                    relevantAccount, timeWindowStart, relevantAccount, timeWindowStart
             );
 
-            // Filter to ensure we only count distinct transactions and exclude the current one if necessary
-            // Although the current transaction will be included in the query result, the logic below checks total.
-            // If the count >= threshold, and it includes the current one, it means the rule is met.
-            if (recentTransactions.size() >= FREQUENT_TRANSACTIONS_COUNT) {
-                String description = "Account ID " + relevantAccountId + " has " + recentTransactions.size() +
-                        " transactions within the last " + FREQUENT_TRANSACTIONS_PERIOD_MINUTES + " minutes. Threshold: " + FREQUENT_TRANSACTIONS_COUNT;
-                createAlert(transaction, "FREQUENT_TRANSACTIONS", description);
-                System.out.println("INFO: Detected potential fraud: FREQUENT_TRANSACTIONS for Account ID " + relevantAccountId);
+            // Filter for only 'large' transactions based on the same threshold
+            long largeRecentTransactionsCount = recentTransactions.stream()
+                    .filter(t -> t.getAmount().compareTo(LARGE_TRANSACTION_THRESHOLD) >= 0)
+                    .count();
+
+            if (largeRecentTransactionsCount >= MULTIPLE_LARGE_TRANSACTIONS_COUNT) {
+                String description = "Account ID " + relevantAccount.getId() + " has " + largeRecentTransactionsCount +
+                        " large transactions (over " + LARGE_TRANSACTION_THRESHOLD + ") within the last " + MULTIPLE_LARGE_TRANSACTIONS_PERIOD_MINUTES + " minutes.";
+                createAlert(transaction, AlertType.MULTIPLE_LARGE_TRANSACTIONS, description, AlertStatus.PENDING);
+                System.out.println("INFO: Detected potential fraud: MULTIPLE_LARGE_TRANSACTIONS for Account ID " + relevantAccount.getId());
             }
         }
-        // TODO: Add more fraud detection rules here in the future
+
+        // Rule 3: Transaction to a Newly Created Account (if it's a transfer or deposit)
+        if (transaction.getDestinationAccount() != null &&
+                (transaction.getTransactionType() == TransactionType.TRANSFER || transaction.getTransactionType() == TransactionType.DEPOSIT)) { // Fixed comparison
+
+            Account destinationAccount = transaction.getDestinationAccount();
+
+            if (destinationAccount.getCreatedAt() != null) {
+                Instant newAccountCutoff = Instant.now().minus(NEW_ACCOUNT_THRESHOLD_HOURS, ChronoUnit.HOURS);
+
+                // Convert LocalDateTime to Instant for comparison, assuming createdAt is LocalDateTime
+                Instant destinationAccountCreatedAtInstant = destinationAccount.getCreatedAt().toInstant(ZoneOffset.UTC); // Assuming UTC for conversion
+
+                if (destinationAccountCreatedAtInstant.isAfter(newAccountCutoff)) { // Fixed comparison
+                    String description = "Transfer/Deposit to a newly created account (ID: " + destinationAccount.getId() + "). Account created on: " + destinationAccount.getCreatedAt();
+                    createAlert(transaction, AlertType.NEWLY_CREATED_ACCOUNT_TRANSFER, description, AlertStatus.PENDING);
+                    System.out.println("INFO: Detected potential fraud: NEWLY_CREATED_ACCOUNT_TRANSFER for Txn ID " + transaction.getId());
+                }
+            }
+        }
     }
 
-    /**
-     * Retrieves all fraud alerts.
-     * @return A list of all FraudAlert objects.
-     */
     @Transactional(readOnly = true)
     public List<FraudAlert> getAllAlerts() {
-        return fraudAlertRepository.findAll();
+        return fraudAlertRepository.findAllByOrderByCreatedAtDesc();
     }
 
-    /**
-     * Retrieves fraud alerts by their status.
-     * @param status The status to filter by (PENDING, REVIEWED, DISMISSED, ESCALATED).
-     * @return A list of FraudAlert objects matching the status.
-     */
     @Transactional(readOnly = true)
     public List<FraudAlert> getAlertsByStatus(AlertStatus status) {
-        return fraudAlertRepository.findByStatus(status);
+        return fraudAlertRepository.findByStatusOrderByCreatedAtDesc(status);
     }
 
-    /**
-     * Updates the status of a fraud alert.
-     * @param alertId The ID of the alert to update.
-     * @param newStatus The new status for the alert.
-     * @return The updated FraudAlert object.
-     * @throws IllegalArgumentException if the alert is not found.
-     */
     @Transactional
     public FraudAlert updateAlertStatus(Long alertId, AlertStatus newStatus) {
         FraudAlert alert = fraudAlertRepository.findById(alertId)
                 .orElseThrow(() -> new IllegalArgumentException("Fraud Alert not found with ID: " + alertId));
         alert.setStatus(newStatus);
+        alert.setLastUpdatedAt(Instant.now()); // Update timestamp on status change
         return fraudAlertRepository.save(alert);
     }
 
-    /**
-     * Deletes a fraud alert by its ID.
-     * @param alertId The ID of the alert to delete.
-     * @throws IllegalArgumentException if the alert is not found.
-     */
     @Transactional
     public void deleteAlert(Long alertId) {
         if (!fraudAlertRepository.existsById(alertId)) {

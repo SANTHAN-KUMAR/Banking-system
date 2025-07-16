@@ -109,6 +109,11 @@
         .dashboard-links a[style*="background-color: #6f42c1"]:hover { background-color: #5f37a6; }
         .dashboard-links a[style*="background-color: #fd7e14"] { background-color: #fd7e14; box-shadow: 0 4px 10px rgba(253,126,20,0.2); }
         .dashboard-links a[style*="background-color: #fd7e14"]:hover { background-color: #e66a0d; }
+        .dashboard-links a.profile-link { background-color: #6c757d; }
+        .dashboard-links a.profile-link:hover { background-color: #5a6268; }
+        .dashboard-links a.pin-link { background-color: #ffc107; color: #343a40; } /* New color for PIN link */
+        .dashboard-links a.pin-link:hover { background-color: #e0a800; }
+
 
         .logout-form {
             text-align: center;
@@ -171,6 +176,8 @@
         <div class="dashboard-links">
             <a th:href="@{/accounts}">View My Accounts</a>
             <a th:href="@{/accounts/all-transactions}">View My Transactions</a>
+            <a th:href="@{/profile}" class="profile-link">View/Edit Profile</a>
+            <a th:href="@{/transaction-pin}" class="pin-link">Set/Change Transaction PIN</a>
         </div>
     </div>
 

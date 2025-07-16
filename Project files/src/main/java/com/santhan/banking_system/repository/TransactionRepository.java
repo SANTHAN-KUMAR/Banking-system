@@ -3,9 +3,12 @@ package com.santhan.banking_system.repository;
 import com.santhan.banking_system.model.Transaction;
 import com.santhan.banking_system.model.Account;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph; // Import EntityGraph
+import org.springframework.stereotype.Repository;
+
 import java.time.Instant;
 import java.util.List;
-import org.springframework.data.jpa.repository.Query;
 import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -22,14 +25,27 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     // Method to find all transactions ordered by date and ID (for ledger verification)
     List<Transaction> findAllByOrderByTransactionDateAscIdAsc();
 
-    // NEW: Method for Frequent Transactions Detection
-    // Finds transactions where the given account is either the source or destination
-    // AND the transaction date is after the specified Instant (timeWindowStart).
-    List<Transaction> findBySourceAccountIdAndTransactionDateAfterOrDestinationAccountIdAndTransactionDateAfter(
-            Long sourceAccountId, Instant sourceTransactionDateAfter,
-            Long destinationAccountId, Instant destinationTransactionDateAfter);
+    // Corrected method for Fraud Detection:
+    List<Transaction> findBySourceAccountAndTransactionDateAfterOrDestinationAccountAndTransactionDateAfter(
+            Account sourceAccount, Instant sourceTransactionDateAfter,
+            Account destinationAccount, Instant destinationTransactionDateAfter);
 
-    // NEW: Methods to find transactions by status for ledger verification/fraud (if needed for specific filtering)
+    // Methods to find transactions by status for ledger verification/fraud (if needed for specific filtering)
     List<Transaction> findBySourceAccountAndStatus(Account sourceAccount, String status);
     List<Transaction> findByDestinationAccountAndStatus(Account destinationAccount, String status);
+
+    // NEW: Find transactions for a specific account within a date range with eager fetching
+    @EntityGraph(attributePaths = {"sourceAccount", "destinationAccount"}) // Eagerly fetch source and destination accounts
+    List<Transaction> findBySourceAccountAndTransactionDateBetweenOrDestinationAccountAndTransactionDateBetween(
+            Account sourceAccount, Instant startDate1, Instant endDate1,
+            Account destinationAccount, Instant startDate2, Instant endDate2
+    );
+
+    // NEW: Find all transactions BEFORE a specific date for opening balance calculation
+    // This finds transactions where the account was either source OR destination before the given date
+    @EntityGraph(attributePaths = {"sourceAccount", "destinationAccount"}) // Eagerly fetch for this method too
+    List<Transaction> findBySourceAccountAndTransactionDateBeforeOrDestinationAccountAndTransactionDateBefore(
+            Account sourceAccount, Instant dateBefore1,
+            Account destinationAccount, Instant dateBefore2
+    );
 }

@@ -1,27 +1,26 @@
 package com.santhan.banking_system.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "fraud_alerts")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 public class FraudAlert {
+
+    public enum AlertType {
+        LARGE_TRANSACTION,
+        MULTIPLE_LARGE_TRANSACTIONS,
+        NEWLY_CREATED_ACCOUNT_TRANSFER,
+        VELOCITY_CHECK,
+        UNUSUAL_LOCATION,
+        SUSPICIOUS_ACCOUNT_INTERACTION
+    }
 
     public enum AlertStatus {
         PENDING("Pending Review"),
         REVIEWED("Reviewed"),
         DISMISSED("Dismissed"),
-        ESCALATED("Escalated");
+        ESCALATED("Escalated to Investigation");
 
         private final String displayName;
 
@@ -42,32 +41,79 @@ public class FraudAlert {
     @JoinColumn(name = "transaction_id", nullable = false)
     private Transaction transaction;
 
-    @Column(nullable = false)
-    private String alertType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "alert_type", nullable = false, length = 50)
+    private AlertType alertType;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AlertStatus status;
-
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    private Instant lastUpdatedAt;
+    @Column(name = "last_updated_at") // NEW FIELD
+    private Instant lastUpdatedAt; // NEW FIELD
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = Instant.now().truncatedTo(ChronoUnit.SECONDS);
-        this.lastUpdatedAt = this.createdAt;
-        if (this.status == null) {
-            this.status = AlertStatus.PENDING;
-        }
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private AlertStatus status;
+
+    // Getters and Setters
+
+    public Long getId() {
+        return id;
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.lastUpdatedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Transaction getTransaction() {
+        return transaction;
+    }
+
+    public void setTransaction(Transaction transaction) {
+        this.transaction = transaction;
+    }
+
+    public AlertType getAlertType() {
+        return alertType;
+    }
+
+    public void setAlertType(AlertType alertType) {
+        this.alertType = alertType;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    // NEW Getter and Setter for lastUpdatedAt
+    public Instant getLastUpdatedAt() {
+        return lastUpdatedAt;
+    }
+
+    public void setLastUpdatedAt(Instant lastUpdatedAt) {
+        this.lastUpdatedAt = lastUpdatedAt;
+    }
+
+    public AlertStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(AlertStatus status) {
+        this.status = status;
     }
 }
