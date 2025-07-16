@@ -51,22 +51,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for simplicity in development, consider enabling for production
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        // Allow public access to registration, login, and verification pages
-                        .requestMatchers("/register", "/login", "/verify-email**", "/resend-email-otp**", "/css/**", "/js/**", "/images/**").permitAll()
+                        // Allow public access to registration, login, verification, AND account creation pages for testing
+                        .requestMatchers("/register", "/login", "/verify-email**", "/resend-email-otp**",
+                                "/css/**", "/js/**", "/images/**",
+                                "/accounts/create").permitAll() // ADD THIS LINE for testing
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .successHandler(customAuthenticationSuccessHandler()) // Use custom success handler
-                        .failureUrl("/login?error=true") // Redirect to login page with error on failure
+                        .successHandler(customAuthenticationSuccessHandler())
+                        .failureUrl("/login?error=true")
                         .permitAll()
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login?logout") // Redirect to login page with logout success message
+                        .logoutSuccessUrl("/login?logout")
                         .permitAll()
                 );
         return http.build();

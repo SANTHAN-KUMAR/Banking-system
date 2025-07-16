@@ -56,6 +56,13 @@
 
 <form action="#" th:action="@{/accounts/create}" th:object="${account}" method="post">
     <div>
+        <label for="userId">Account Holder:</label>
+        <select id="userId" name="userId" required>
+            <option value="">-- Select User --</option>
+            <option th:each="user : ${users}" th:value="${user.id}" th:text="${user.username + ' (' + user.firstName + ' ' + user.lastName + ')'}"></option>
+        </select>
+    </div>
+    <div>
         <label for="accountType">Account Type:</label>
         <select id="accountType" th:field="*{accountType}" required>
             <option value="">-- Select Type --</option>

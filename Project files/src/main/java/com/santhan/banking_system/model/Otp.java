@@ -10,11 +10,7 @@ import java.time.LocalDateTime;
         // For simplicity with Spring Data JPA and common MySQL setups, we'll rely on the application
         // logic to invalidate old OTPs, but this constraint is ideal if your DB supports it easily.
         // A more direct unique constraint for "active" OTPs would be on (user_id, purpose)
-        // if you always invalidate the old one before inserting a new one.
-        // Let's try a simpler approach first, which is to ensure the update/insert sequence is robust.
-        // If you want to enforce "only one active OTP per user/purpose" at DB level, you'd need:
-        // @UniqueConstraint(columnNames = {"user_id", "purpose"}, name = "UK_user_purpose_active_otp")
-        // AND modify your logic to always update the existing one or delete it before inserting.
+        // if you always invalidate the old one or delete it before inserting.
         // For now, let's remove this specific unique constraint and fix the logic.
 })
 public class Otp {
@@ -120,8 +116,8 @@ public class Otp {
         this.used = used;
     }
 
+    @Transient // Not persisted to database
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
     }
 }
-    

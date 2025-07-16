@@ -56,22 +56,22 @@ public class UserService implements UserDetailsService {
         System.out.println("DEBUG:   Username: '" + user.getUsername() + "'");
         System.out.println("DEBUG:   Email:    '" + user.getEmail() + "'");
 
+        // Check for existing users with the same username, email, or mobile
         userRepository.findByUsername(user.getUsername()).ifPresent(u -> {
-            System.err.println("ERROR: Username '" + user.getUsername() + "' already exists.");
             throw new IllegalArgumentException("Username already exists.");
         });
+
         userRepository.findByEmail(user.getEmail()).ifPresent(u -> {
-            System.err.println("ERROR: Email '" + user.getEmail() + "' already exists.");
             throw new IllegalArgumentException("Email already exists.");
         });
+
         if (user.getMobileNumber() != null && !user.getMobileNumber().trim().isEmpty()) {
             userRepository.findByMobileNumber(user.getMobileNumber()).ifPresent(u -> {
-                System.err.println("ERROR: Mobile number '" + user.getMobileNumber() + "' already exists.");
                 throw new IllegalArgumentException("Mobile number already registered.");
             });
         }
 
-
+        // Encode password and set up user properties
         String encodedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
         System.out.println("DEBUG: Password after encoding: '" + encodedPassword + "'");
@@ -89,16 +89,18 @@ public class UserService implements UserDetailsService {
             user.setRole(UserRole.ROLE_CUSTOMER);
         }
 
+        // Save the user first - separate this from OTP generation
         User savedUser = userRepository.save(user);
         System.out.println("DEBUG: User saved to database. Generated ID: " + savedUser.getId());
 
+        // Now handle OTP generation in a separate try/catch block to prevent user creation rollback
         try {
             otpService.generateAndSendOtp(savedUser, Otp.OtpPurpose.EMAIL_VERIFICATION);
             System.out.println("DEBUG: Email verification OTP sent for user: " + savedUser.getUsername());
-        } catch (RuntimeException e) { // Catch RuntimeException from OtpService's new transaction
+        } catch (Exception e) {
+            // Log but don't re-throw - we still want user creation to succeed
             System.err.println("ERROR: Failed to send OTP email for user " + savedUser.getUsername() + ": " + e.getMessage());
-            // IMPORTANT: Do NOT re-throw here. The user creation transaction should commit.
-            // The user will be created, but their email will remain unverified, requiring a resend.
+            e.printStackTrace();
         }
 
         return savedUser;
