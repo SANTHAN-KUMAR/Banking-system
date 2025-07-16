@@ -97,6 +97,10 @@ public class UserService implements UserDetailsService {
             System.out.println("DEBUG: Email verification OTP sent for user: " + savedUser.getUsername());
         } catch (RuntimeException e) { // Catch RuntimeException from OtpService's new transaction
             System.err.println("ERROR: Failed to send OTP email for user " + savedUser.getUsername() + ": " + e.getMessage());
+            // Check if it's a lock timeout issue
+            if (e.getMessage().contains("database lock timeout")) {
+                System.err.println("WARN: Database lock timeout occurred during OTP generation. User created successfully but OTP failed. User can use 'Resend OTP' option.");
+            }
             // IMPORTANT: Do NOT re-throw here. The user creation transaction should commit.
             // The user will be created, but their email will remain unverified, requiring a resend.
         }

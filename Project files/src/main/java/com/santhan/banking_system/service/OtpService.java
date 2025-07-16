@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.Modifying; // Import for @Modifying
+import org.springframework.dao.PessimisticLockingFailureException;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -33,47 +34,83 @@ public class OtpService {
             throw new IllegalArgumentException("User and user's email must not be null for OTP generation.");
         }
 
+        return generateAndSendOtpWithRetry(user, purpose, 3);
+    }
+
+    private String generateAndSendOtpWithRetry(User user, Otp.OtpPurpose purpose, int maxRetries) {
         String otpCode = String.format("%06d", new Random().nextInt(999999));
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expiryTime = now.plusMinutes(OTP_VALIDITY_MINUTES);
 
-        try {
-            // 1. Create and save the NEW OTP first. This is a pure insert.
-            Otp newOtp = new Otp();
-            newOtp.setOtpCode(otpCode);
-            newOtp.setUser(user);
-            newOtp.setCreatedAt(now);
-            newOtp.setExpiresAt(expiryTime);
-            newOtp.setPurpose(purpose);
-            newOtp.setUsed(false);
+        int attempts = 0;
+        while (attempts < maxRetries) {
+            try {
+                // 1. Create and save the NEW OTP first. This is a pure insert.
+                Otp newOtp = new Otp();
+                newOtp.setOtpCode(otpCode);
+                newOtp.setUser(user);
+                newOtp.setCreatedAt(now);
+                newOtp.setExpiresAt(expiryTime);
+                newOtp.setPurpose(purpose);
+                newOtp.setUsed(false);
 
-            otpRepository.save(newOtp); // Save the new OTP
-            System.out.println("DEBUG: New OTP saved to database. OTP Code: " + otpCode + ", User ID: " + user.getId());
+                otpRepository.save(newOtp); // Save the new OTP
+                System.out.println("DEBUG: New OTP saved to database. OTP Code: " + otpCode + ", User ID: " + user.getId());
 
-            // 2. Invalidate all OTHER active OTPs for this user and purpose.
-            // This is a bulk update, which can be more efficient and less prone to row-level
-            // locking conflicts than selecting and updating one by one.
-            // We need a custom method in OtpRepository for this.
-            otpRepository.invalidateOtherActiveOtps(user.getId(), purpose, newOtp.getId(), now);
-            System.out.println("DEBUG: Invalidated previous active OTPs for user " + user.getUsername() + ", purpose " + purpose);
+                // 2. Invalidate all OTHER active OTPs for this user and purpose.
+                // This is a bulk update, which can be more efficient and less prone to row-level
+                // locking conflicts than selecting and updating one by one.
+                // We need a custom method in OtpRepository for this.
+                otpRepository.invalidateOtherActiveOtps(user.getId(), purpose, newOtp.getId(), now);
+                System.out.println("DEBUG: Invalidated previous active OTPs for user " + user.getUsername() + ", purpose " + purpose);
 
+                // Send email
+                String subject = "Your Banking System OTP";
+                String body = String.format("Dear %s,\n\nYour One-Time Password (OTP) for %s is: %s\n\nThis OTP is valid for %d minutes.\n\nDo not share this OTP with anyone.\n\nSincerely,\nYour Banking System",
+                        user.getFirstName() != null ? user.getFirstName() : user.getUsername(),
+                        purpose.name().replace("_", " ").toLowerCase(),
+                        otpCode, OTP_VALIDITY_MINUTES);
 
-            // Send email
-            String subject = "Your Banking System OTP";
-            String body = String.format("Dear %s,\n\nYour One-Time Password (OTP) for %s is: %s\n\nThis OTP is valid for %d minutes.\n\nDo not share this OTP with anyone.\n\nSincerely,\nYour Banking System",
-                    user.getFirstName() != null ? user.getFirstName() : user.getUsername(),
-                    purpose.name().replace("_", " ").toLowerCase(),
-                    otpCode, OTP_VALIDITY_MINUTES);
-
-            emailService.sendEmail(user.getEmail(), subject, body);
-            System.out.println("DEBUG: OTP email send initiated for " + user.getEmail() + " for purpose: " + purpose);
-        } catch (Exception e) {
-            System.err.println("ERROR: Failed to process OTP for user " + user.getUsername() + ": " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Failed to generate and send OTP.", e);
+                emailService.sendEmail(user.getEmail(), subject, body);
+                System.out.println("DEBUG: OTP email send initiated for " + user.getEmail() + " for purpose: " + purpose);
+                
+                // If we reach here, the operation was successful
+                return otpCode;
+                
+            } catch (PessimisticLockingFailureException e) {
+                attempts++;
+                System.err.println("WARN: Lock timeout occurred during OTP generation for user " + user.getUsername() + 
+                                 " (attempt " + attempts + "/" + maxRetries + "): " + e.getMessage());
+                
+                if (attempts >= maxRetries) {
+                    System.err.println("ERROR: Failed to generate OTP after " + maxRetries + " attempts for user " + user.getUsername());
+                    throw new RuntimeException("Failed to generate OTP after " + maxRetries + " attempts due to database lock timeout. Please try again.", e);
+                }
+                
+                // Wait before retry with exponential backoff
+                try {
+                    long waitTime = (long) (100 * Math.pow(2, attempts - 1)); // 100ms, 200ms, 400ms, etc.
+                    System.out.println("DEBUG: Waiting " + waitTime + "ms before retry...");
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Thread interrupted during OTP generation retry", ie);
+                }
+                
+                // Generate new OTP code for retry to avoid duplicate issues
+                otpCode = String.format("%06d", new Random().nextInt(999999));
+                now = LocalDateTime.now();
+                expiryTime = now.plusMinutes(OTP_VALIDITY_MINUTES);
+                
+            } catch (Exception e) {
+                System.err.println("ERROR: Failed to process OTP for user " + user.getUsername() + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Failed to generate and send OTP.", e);
+            }
         }
-
-        return otpCode;
+        
+        // This should never be reached due to the throw in the catch block
+        throw new RuntimeException("Unexpected error in OTP generation retry logic");
     }
 
     @Transactional
