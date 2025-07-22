@@ -4,6 +4,8 @@
 
 ## Recent update : Latest update with enhanced features (v3.4) - refer description for full udpate log.
 
+### (The recent update consists Secret keys in order to pass the test cases, so they were removed and the build is failing. 
+
 ---
 
 ## System Design of the project : (not yet fully connected with the recent updates made)
