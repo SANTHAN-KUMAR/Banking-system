@@ -14,7 +14,7 @@
 
 
 
-## Currently in Hybrid Phase - 4
+## Currently - done with implementations listed in temp_goals.md
 
 ## ~~Phase 0: Foundation~~ (Completed)
 
