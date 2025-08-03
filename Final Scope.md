@@ -1,3 +1,4 @@
+# (This is just a draft, please refer improved scope.md for further details)
 # Advanced Strategies for a Future-Proof Hybrid Banking System
 
 This document outlines advanced strategies to integrate into our hybrid banking system, leveraging the strengths of both traditional finance and cutting-edge blockchain technology. By focusing on enhanced security, deeper blockchain integration, superior customer experience, and operational excellence, we can create a truly unique and competitive financial platform.
