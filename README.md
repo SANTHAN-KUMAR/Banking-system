@@ -2,6 +2,67 @@
 [![Maven Package](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
 
+# This project is **not** a normal banking system. Here’s what sets it apart and exactly what it’s doing:
+
+---
+
+## **What Is This Project Doing?**
+
+It’s building a **Hybrid Banking System** that combines the best features of both traditional banking and blockchain technology. This means:
+
+- **All core banking operations** (user management, account creation, deposits, withdrawals, transfers, transaction history, KYC, etc.) are present, just like a normal banking system.
+- **PLUS:** Every transaction is cryptographically chained (blockchain-style), making the ledger immutable and tamper-evident. This is NOT just a log—it’s a full audit trail where every transaction hash depends on the previous, so any change breaks the chain.
+- **PLUS:** Real-time fraud detection is built-in, with automated alerts for suspicious activity (large transfers, frequent transactions, transfers to new accounts, etc.).
+- **PLUS:** Controlled reversibility—unlike pure blockchain, authorized admins/employees can reverse transactions (with audit trail), reflecting real banking needs (disputes, errors, fraud).
+
+---
+
+## **How Is This Different From a Standard Banking System?**
+
+### **Standard Banking System**
+- **Audit trails** can be edited by insiders (DB admins, devs).
+- Transactions can be changed or deleted—hard to spot tampering.
+- Fraud detection is often manual or basic.
+- Reversibility is possible, but not always clearly tracked.
+- Security is heavily reliant on access controls and compliance audits.
+
+### **This Hybrid System**
+- **Immutability:** Every transaction is part of a hash chain (like a blockchain), so even if someone has DB access, tampering is instantly detectable.
+- **Auditability:** Anyone can verify the ledger’s integrity at any time via the admin interface. Ledger verification recalculates hashes and detects changes.
+- **Real-time Automated Fraud Alerts:** System detects and flags suspicious transactions automatically, not just after-the-fact.
+- **Controlled Reversibility:** Unlike blockchain (no reversals possible), authorized reversals are possible—but every reversal is recorded as a new, chained transaction, with a clear link to the original.
+- **Hybrid Compliance:** Fuses blockchain’s transparency with the compliance and customer-protection features of banking (KYC, user roles, admin controls).
+
+---
+
+## **What’s the Unique Value Proposition?**
+
+**1. Tamper-Evident Ledger**
+   - All transactions are chained with cryptographic hashes.
+   - No insider (not even a DBA) can alter history without detection.
+
+**2. Real-Time Fraud Monitoring**
+   - Automated alert engine flags risky behavior instantly (large/frequent transactions, new account activity).
+
+**3. Hybrid Reversibility**
+   - Admin/employee can reverse transactions (like real banks), but every reversal is part of the immutable ledger.
+
+**4. Strong Identity & Authorization**
+   - KYC, RBAC, PINs, and (planned) 2FA/OTP.
+
+**5. Blockchain Benefits, Banking Practicality**
+   - You get blockchain-style proof and security, but with regulatory flexibility and customer protections only banks can offer.
+
+**6. Foundation for Advanced Features**
+   - Ready for AI-based fraud detection, asset tokenization, open banking APIs, and more (see [Final Scope.md](Final%20Scope.md)).
+
+---
+
+### **In summary:**
+> **This is a next-gen, tamper-proof banking system that brings together the strengths of both blockchain and traditional banking. It’s not just “digital banking”—it’s auditable, secure, and future-ready.**
+
+If you want a normal banking system, you can use only the CRUD/account/transaction features. If you want to **prove to auditors, customers, or regulators that your records are 100% untampered and modernize for the future**, this hybrid approach is unique.
+
 ## Recent update : Latest update with enhanced features (v3.4) - refer description for full udpate log.
 
 ### (The recent update consists Secret keys in order to pass the test cases, so they were removed and the build is failing. 
