@@ -54,7 +54,7 @@ It’s building a **Hybrid Banking System** that combines the best features of b
    - You get blockchain-style proof and security, but with regulatory flexibility and customer protections only banks can offer.
 
 **6. Foundation for Advanced Features**
-   - Ready for AI-based fraud detection, asset tokenization, open banking APIs, and more (see [Final Scope.md](Final%20Scope.md)).
+   - Conceptual AI-based fraud detection, asset tokenization, open banking APIs, and more (see [Final Scope.md](Final%20Scope.md)).
 
 ---
 
