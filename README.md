@@ -62,12 +62,6 @@ This is NOT a typical banking CRUD app.
 
 ---
 
-## 🖼️ Screenshots
-
-*Add screenshots or GIFs here to showcase:*
-- Admin dashboard (showing fraud alerts, ledger verification)
-- Customer view (account management, transaction history)
-- Fraud alert pop-up or reversal action
 
 ---
 
