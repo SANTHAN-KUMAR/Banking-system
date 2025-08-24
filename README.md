@@ -114,7 +114,7 @@ This is NOT a typical banking CRUD app.
   ```bash
   mvn test
   ```
-  *(Add more unit/integration tests in `/src/test/java` for services like `UserService`, `TransactionService`, `FraudAlertService`.)*
+  *(Yet to add more unit/integration tests in `/src/test/java` for services like `UserService`, `TransactionService`, `FraudAlertService`.)*
 
 ---
 
@@ -158,7 +158,6 @@ This is NOT a typical banking CRUD app.
 | Italian Spunta        |    25%     | Only interbank reconciliation             |
 | R3 Corda              |    30%     | Private DLT, no hybrid compliance         |
 
-**Uniqueness Score:** 71.9% (combining existing ideas in a genuinely new, practical way for banking)
 
 ---
 
