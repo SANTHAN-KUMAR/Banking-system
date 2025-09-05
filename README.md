@@ -167,4 +167,134 @@ This is NOT a typical banking CRUD app.
 
 ---
 
+# 🚀 How to Set Up and Run the Hybrid Banking System (For Absolute Beginners)
+
+Welcome! If you have **zero Java or Spring Boot experience**, you can still set up and run this project by following these steps carefully.
+
+---
+
+## 1. **Prerequisites — Get These Tools First**
+
+- **Java 17 or higher**  
+  - Download: [Adoptium (Recommended)](https://adoptium.net/temurin/releases/?version=17)
+  - After install:  
+    - Open a terminal/cmd and run:  
+      `java -version`  
+      (Should print something like `17.0.x` or higher)
+
+- **Maven (build tool)**  
+  - *You don’t need to install it separately!* This project includes the Maven Wrapper (`mvnw` or `mvnw.cmd`), so you’re good as long as you have Java.
+
+- **MySQL Server**  
+  - Download: [MySQL Community Server](https://dev.mysql.com/downloads/mysql/)
+  - After install:  
+    - Use MySQL Workbench or CLI to create a database:  
+      ```sql
+      CREATE DATABASE banking_system;
+      ```
+    - Remember your MySQL username and password!
+
+---
+
+## 2. **Clone the Project**
+
+```bash
+git clone https://github.com/SANTHAN-KUMAR/Banking-system.git
+cd Banking-system/Project\ files
+```
+*(if you’re on Windows, use `cd "Project files"`)*
+---
+
+## 3. **Configure Database and Email Settings**
+
+- Open `src/main/resources/application.properties` in a text editor.
+- Change these lines to match your MySQL setup:
+  ```
+  spring.datasource.username=your_mysql_username
+  spring.datasource.password=your_mysql_password
+  ```
+- (Optional) **Email sending for OTPs:**  
+  - By default, it’s configured for Gmail SMTP.
+  - For local testing, you can ignore errors or use a **fake SMTP** service like [Mailtrap](https://mailtrap.io/).
+
+---
+
+## 4. **Run the Application**
+
+### **On Windows**
+```bash
+./mvnw.cmd spring-boot:run
+```
+### **On Mac/Linux**
+```bash
+./mvnw spring-boot:run
+```
+
+- The app will download dependencies (first run may take a few minutes).
+- If you see `Started BankingSystemApplication`, it’s running!
+
+---
+
+## 5. **Access the App**
+
+- Open your browser and go to:  
+  [http://localhost:8080](http://localhost:8080)
+
+---
+
+## 6. **Register or Log In**
+
+- Register as a new user, or use demo credentials (see README).
+- If you want to test Admin/Employee features, use the default test users (if present), or promote yourself via the database.
+
+---
+
+## 7. **Troubleshooting — Common Errors**
+
+- **Port 8080 already in use?**
+  - Stop other running servers (like Tomcat, another Java app) or change `server.port` in `application.properties`.
+
+- **Database connection error?**
+  - Double check your MySQL is running and credentials in `application.properties` are correct.
+  - Database `banking_system` must exist.
+
+- **Email errors on registration?**
+  - For local demo, you can ignore. Email sending is needed only for OTP verification.
+
+- **Build failures about Java version?**
+  - Make sure `java -version` says at least 17.
+
+---
+
+## 8. **How to Contribute (For Beginners)**
+
+- **Don’t know Java?**  
+  - Start with `src/main/resources/templates/` — these are HTML files (Thymeleaf) that control the UI.
+- Want to change logic?  
+  - Explore `src/main/java/com/santhan/banking_system/controller/` for web endpoints.
+
+- **Need help?**  
+  - Open a GitHub issue or discussion in this repo!
+
+---
+
+## 9. **Resetting Database (for a clean slate)**
+
+- If you change transaction hash/date logic, or want to wipe all data, run in MySQL:
+  ```sql
+  DROP DATABASE banking_system;
+  CREATE DATABASE banking_system;
+  ```
+- (Or set `spring.jpa.hibernate.ddl-auto=create` for auto-wipe on restart.)
+
+---
+
+## 10. **Extra Tips**
+
+- **Don’t edit credentials in code for production!** Use environment variables.
+- **For Mac/Windows, file paths and commands are case sensitive**—copy carefully.
+
+---
+
+
 **“This hybrid approach brings the best of blockchain and banking together—security, auditability, and real-world usability.”**
