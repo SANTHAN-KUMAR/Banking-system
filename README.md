@@ -1,10 +1,10 @@
-# 🚀 Hybrid Banking System — Next-Gen Tamper-Proof, Fraud-Resistant Banking Platform
+# Hybrid Banking System - Tamper-Proof, Fraud-Resistant Banking Platform
 
 [![Build Status](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
 ---
 
-## ⭐️ What Makes This Project Unique?
+## What Makes This Project Unique?
 
 This is NOT a typical banking CRUD app.  
 **It’s a hybrid system fusing blockchain-style immutability with real-world banking compliance and security.**
