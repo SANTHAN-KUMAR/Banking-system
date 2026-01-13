@@ -17,7 +17,7 @@ This is NOT a typical banking CRUD app.
 
 ---
 
-## 🎯 Features At-a-Glance
+## Features At-a-Glance
 
 | Feature                        | Supported | Description                                          |
 |--------------------------------|:---------:|------------------------------------------------------|
@@ -27,7 +27,6 @@ This is NOT a typical banking CRUD app.
 | Real-Time Fraud Alerts         |    ✅     | Automated alerting for suspicious activity           |
 | Controlled Transaction Reversal|    ✅     | Admin/employee can reverse, with audit trail         |
 | KYC Compliance                 |    ✅     | KYC workflow and status tracking                     |
-| PDF Statement Export           |    🚧     | Coming soon                                          |
 | REST API                       |    🚧     | Partial                                              |
 | Admin/Employee Dashboard       |    ✅     | Full management of users/accounts/alerts             |
 
