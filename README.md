@@ -2,6 +2,7 @@
 
 [![Build Status](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
+## Currently inactive (Railway Deployment)
 ---
 
 ## What Makes This Project Unique?
