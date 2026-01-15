@@ -53,7 +53,7 @@ This is NOT a typical banking CRUD app.
 
 ---
 
-## 🛡️ Why This Matters (The “Why,” Not Just the “What”)
+## Why This Matters (The “Why,” Not Just the “What”)
 
 - **Immutable Audit Trail:** Proves integrity of every record—auditors, regulators, and customers can trust the data.
 - **Proactive Security:** Fraud alerts are generated automatically, reducing risk and response times.
@@ -65,7 +65,7 @@ This is NOT a typical banking CRUD app.
 
 ---
 
-## 🚦 Quickstart: Running Locally
+## Quickstart: Running Locally
 
 1. **Clone the repo:**
    ```bash
