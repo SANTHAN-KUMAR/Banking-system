@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     // Method to find all transactions for a given account (either as source or destination)
@@ -19,8 +21,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findBySourceAccount_IdOrDestinationAccount_Id(Long sourceAccountId, Long destinationAccountId);
 
     // Method to find the latest transaction for previous hash chaining
-    @Query(value = "SELECT t FROM Transaction t ORDER BY t.transactionDate DESC, t.id DESC LIMIT 1")
-    Optional<Transaction> findLatestTransaction();
+    // REPLACED with standard Spring Data JPA method + Locking for concurrency control
+    // @Query(value = "SELECT t FROM Transaction t ORDER BY t.transactionDate DESC, t.id DESC LIMIT 1")
+    // Optional<Transaction> findLatestTransaction();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Transaction> findTopByOrderByTransactionDateDescIdDesc();
 
     // Method to find all transactions ordered by date and ID (for ledger verification)
     List<Transaction> findAllByOrderByTransactionDateAscIdAsc();

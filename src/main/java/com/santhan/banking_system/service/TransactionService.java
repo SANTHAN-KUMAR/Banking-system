@@ -25,14 +25,17 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final FraudAlertService fraudAlertService;
+    private final EmailService emailService; // Inject EmailService
 
     @Autowired
     public TransactionService(AccountRepository accountRepository,
                               TransactionRepository transactionRepository,
-                              FraudAlertService fraudAlertService) {
+                              FraudAlertService fraudAlertService,
+                              EmailService emailService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.fraudAlertService = fraudAlertService;
+        this.emailService = emailService;
     }
 
     private Transaction createAndSaveChainedTransaction(
@@ -41,7 +44,8 @@ public class TransactionService {
 
         Transaction newTransaction = new Transaction(type, amount, description, sourceAccount, destinationAccount);
 
-        Optional<Transaction> latestTransactionOptional = transactionRepository.findLatestTransaction();
+        // Use the locking method to prevent race conditions
+        Optional<Transaction> latestTransactionOptional = transactionRepository.findTopByOrderByTransactionDateDescIdDesc();
         String previousHash = latestTransactionOptional.map(Transaction::getTransactionHash).orElse("0");
 
         newTransaction.setPreviousTransactionHash(previousHash);
@@ -104,6 +108,20 @@ public class TransactionService {
                 updatedAccount
         );
 
+        // Send deposit email notification
+        if (account.getUser() != null && account.getUser().getEmail() != null) {
+            String userEmail = account.getUser().getEmail();
+            String subject = "Deposit Successful";
+            String body = String.format(
+                    "Dear %s,\n\nA deposit of %s has been credited to your account %s on %s.\n\nThank you for banking with us.",
+                    account.getUser().getFirstName(),
+                    amount.toPlainString(),
+                    account.getAccountNumber(),
+                    LocalDateTime.now()
+            );
+            emailService.sendEmail(userEmail, subject, body);
+        }
+
         return updatedAccount;
     }
 
@@ -131,6 +149,20 @@ public class TransactionService {
                 updatedAccount,
                 null
         );
+
+        // Send withdrawal email notification
+        if (account.getUser() != null && account.getUser().getEmail() != null) {
+            String userEmail = account.getUser().getEmail();
+            String subject = "Withdrawal Alert";
+            String body = String.format(
+                    "Dear %s,\n\nA withdrawal of %s has been debited from your account %s on %s.\n\nThank you for banking with us.",
+                    account.getUser().getFirstName(),
+                    amount.toPlainString(),
+                    account.getAccountNumber(),
+                    LocalDateTime.now()
+            );
+            emailService.sendEmail(userEmail, subject, body);
+        }
 
         return updatedAccount;
     }
@@ -166,12 +198,38 @@ public class TransactionService {
                 sourceAccount,
                 destinationAccount
         );
+
+        // Notify sender
+        if (sourceAccount.getUser() != null && sourceAccount.getUser().getEmail() != null) {
+            String senderEmail = sourceAccount.getUser().getEmail();
+            String senderBody = String.format(
+                    "Dear %s,\n\nYou have transferred %s to account %s on %s.\n\nThank you for banking with us.",
+                    sourceAccount.getUser().getFirstName(),
+                    amount.toPlainString(),
+                    destinationAccount.getAccountNumber(),
+                    LocalDateTime.now()
+            );
+            emailService.sendEmail(senderEmail, "Funds Transferred", senderBody);
+        }
+
+        // Notify receiver
+        if (destinationAccount.getUser() != null && destinationAccount.getUser().getEmail() != null) {
+            String receiverEmail = destinationAccount.getUser().getEmail();
+            String receiverBody = String.format(
+                    "Dear %s,\n\nAn amount of %s has been credited to your account %s from account %s on %s.\n\nThank you for banking with us.",
+                    destinationAccount.getUser().getFirstName(),
+                    amount.toPlainString(),
+                    destinationAccount.getAccountNumber(),
+                    sourceAccount.getAccountNumber(),
+                    LocalDateTime.now()
+            );
+            emailService.sendEmail(receiverEmail, "Funds Received", receiverBody);
+        }
     }
 
     public List<Transaction> getAllTransactions() {
         return transactionRepository.findAllByOrderByTransactionDateAscIdAsc();
     }
-
 
     public List<Transaction> getTransactionsForAccount(Long accountId) {
         List<Transaction> allTransactions = transactionRepository.findAllByOrderByTransactionDateAscIdAsc();
@@ -181,7 +239,6 @@ public class TransactionService {
                 .sorted((t1, t2) -> t2.getTransactionDate().compareTo(t1.getTransactionDate()))
                 .collect(Collectors.toList());
     }
-
 
     @Transactional(readOnly = true)
     public List<Transaction> getTransactionsForUser(Long userId) {
@@ -207,65 +264,75 @@ public class TransactionService {
      * @return true if the ledger is intact, false if tampering is detected.
      */
     @Transactional(readOnly = true)
+    /**
+     * Verifies the integrity of the transaction ledger.
+     * Use pagination to avoid OutOfMemoryError for large datasets.
+     * @return true if the ledger is intact, false if tampering is detected.
+     */
+    @Transactional(readOnly = true)
     public boolean verifyLedgerIntegrity() {
-        List<Transaction> allTransactions = transactionRepository.findAllByOrderByTransactionDateAscIdAsc();
-
+        int pageSize = 1000;
+        int pageNumber = 0;
+        boolean hasMore = true;
         String expectedPreviousHash = "0";
 
-        for (Transaction currentTransaction : allTransactions) {
-            String actualPreviousHash = currentTransaction.getPreviousTransactionHash();
+        while (hasMore) {
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(pageNumber, pageSize, 
+                org.springframework.data.domain.Sort.by("transactionDate").ascending().and(org.springframework.data.domain.Sort.by("id").ascending()));
+            
+            org.springframework.data.domain.Page<Transaction> page = transactionRepository.findAll(pageable);
+            List<Transaction> transactions = page.getContent();
 
-            boolean previousHashMatches = (actualPreviousHash == null && expectedPreviousHash.equals("0")) ||
-                    (actualPreviousHash != null && actualPreviousHash.equals(expectedPreviousHash));
-
-            if (!previousHashMatches) {
-                System.err.println("TAMPERING DETECTED: Previous hash mismatch for transaction ID " + currentTransaction.getId());
-                System.err.println("  Expected previous hash: " + expectedPreviousHash);
-                System.err.println("  Actual previous hash in DB: " + (actualPreviousHash == null ? "NULL" : actualPreviousHash));
-                return false;
+            if (transactions.isEmpty()) {
+                hasMore = false;
+                break;
             }
 
-            Long sourceAccountId = (currentTransaction.getSourceAccount() != null) ? currentTransaction.getSourceAccount().getId() : null;
-            Long destinationAccountId = (currentTransaction.getDestinationAccount() != null) ? currentTransaction.getDestinationAccount().getId() : null;
+            for (Transaction currentTransaction : transactions) {
+                String actualPreviousHash = currentTransaction.getPreviousTransactionHash();
 
-            String recalculatedHashInput = HashUtil.generateTransactionDataString(
-                    currentTransaction.getId(),
-                    currentTransaction.getTransactionType(),
-                    currentTransaction.getAmount(),
-                    currentTransaction.getDescription(),
-                    sourceAccountId,
-                    destinationAccountId,
-                    currentTransaction.getTransactionDate()
-            );
+                boolean previousHashMatches = (actualPreviousHash == null && expectedPreviousHash.equals("0")) ||
+                        (actualPreviousHash != null && actualPreviousHash.equals(expectedPreviousHash));
 
-            // --- START SUPER DEBUG LOGGING (Verification Side) ---
-            System.out.println("\nDEBUG HASH INPUT (VERIFICATION) FOR TRANSACTION ID " + currentTransaction.getId());
-            System.out.println("------------------------------------------------------------------");
-            System.out.println("Full String for Recalculation: [" + recalculatedHashInput + "]");
-            System.out.println("Length of string: " + recalculatedHashInput.length());
-            for (int i = 0; i < recalculatedHashInput.length(); i++) {
-                char c = recalculatedHashInput.charAt(i);
-                System.out.println("  Index " + i + ": Char='" + c + "' (Unicode: " + (int) c + ")");
+                if (!previousHashMatches) {
+                    System.err.println("TAMPERING DETECTED: Previous hash mismatch for transaction ID " + currentTransaction.getId());
+                    System.err.println("  Expected previous hash: " + expectedPreviousHash);
+                    System.err.println("  Actual previous hash in DB: " + (actualPreviousHash == null ? "NULL" : actualPreviousHash));
+                    return false;
+                }
+
+                Long sourceAccountId = (currentTransaction.getSourceAccount() != null) ? currentTransaction.getSourceAccount().getId() : null;
+                Long destinationAccountId = (currentTransaction.getDestinationAccount() != null) ? currentTransaction.getDestinationAccount().getId() : null;
+
+                String recalculatedHashInput = HashUtil.generateTransactionDataString(
+                        currentTransaction.getId(),
+                        currentTransaction.getTransactionType(),
+                        currentTransaction.getAmount(),
+                        currentTransaction.getDescription(),
+                        sourceAccountId,
+                        destinationAccountId,
+                        currentTransaction.getTransactionDate()
+                );
+
+                String expectedCurrentHash = HashUtil.calculateSHA256Hash(recalculatedHashInput);
+                String actualCurrentHash = currentTransaction.getTransactionHash();
+
+                if (actualCurrentHash == null || !actualCurrentHash.equals(expectedCurrentHash)) {
+                    System.err.println("TAMPERING DETECTED: Current hash mismatch for transaction ID " + currentTransaction.getId());
+                    return false;
+                }
+
+                expectedPreviousHash = currentTransaction.getTransactionHash();
             }
-            System.out.println("------------------------------------------------------------------\n");
-            // --- END SUPER DEBUG LOGGING (Verification Side) ---
 
-            String expectedCurrentHash = HashUtil.calculateSHA256Hash(recalculatedHashInput);
-
-            String actualCurrentHash = currentTransaction.getTransactionHash();
-            if (actualCurrentHash == null || !actualCurrentHash.equals(expectedCurrentHash)) {
-                System.err.println("TAMPERING DETECTED: Current hash mismatch for transaction ID " + currentTransaction.getId());
-                System.err.println("  Expected current hash (recalculated): " + expectedCurrentHash);
-                System.err.println("  Actual current hash in DB: " + (actualCurrentHash == null ? "NULL" : actualCurrentHash));
-                System.err.println("  Data string used for recalculation: [" + recalculatedHashInput + "]");
-                return false;
+            if (page.hasNext()) {
+                pageNumber++;
+            } else {
+                hasMore = false;
             }
-
-            expectedPreviousHash = currentTransaction.getTransactionHash();
         }
         return true;
     }
-
 
     // NEW: Transaction Reversal Logic (from your provided code - ensuring it calls createAndSaveChainedTransaction)
     @Transactional
