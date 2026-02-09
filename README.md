@@ -61,7 +61,6 @@ This is NOT a typical banking CRUD app.
 
 ---
 
-
 ---
 
 ## Quickstart: Running Locally
@@ -93,7 +92,7 @@ This is NOT a typical banking CRUD app.
 
 ---
 
-## 👤 Demo/Test Credentials
+## Demo/Test Credentials
 
 > Use these for quick testing (change/remove in production):
 
