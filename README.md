@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/SANTHAN-KUMAR/Banking-system/actions/workflows/maven-publish.yml)
 
 ---
-
+## To Do : Refactor the whole codebase and keep only the blockchain feature and logic
 ## What Makes This Project Unique?
 
 This is NOT a typical banking CRUD app.  
